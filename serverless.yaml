@@ -1,0 +1,43 @@
+#  https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Given a bucket with a create trigger
+  and a destination bucket is named in the environment 
+  When an object is created
+  Then the object is copied to the destination bucket'
+Globals:
+  Function:
+    Runtime: 'python3.6'
+    MemorySize: 128
+    Timeout: 3
+Resources:
+  SourceBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'serverless-source-bucket'
+  DestinationBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'serverless-destination-bucket'
+  CopyFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'ServerlessCopyFunction'
+      Description: ''
+      Handler: 'lambda_copy.lambda_handler'
+      CodeUri: .
+      Policies: AmazonS3FullAccess
+      Environment:
+        Variables:
+          DestinationBucket: 'serverless-destination-bucket'
+      Events:
+        BucketEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref SourceBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: 'suffix'
+                    Value: '.txt'
