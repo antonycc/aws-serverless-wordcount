@@ -12,4 +12,3 @@ echo -n "." ; sleep 1
 aws s3 ls "s3://serverless-destination-bucket/"
 
 rm "test.txt"
-

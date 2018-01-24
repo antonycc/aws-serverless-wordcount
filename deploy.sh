@@ -1,8 +1,5 @@
 #!/bin/bash
 
-aws cloudformation validate-template \
-   --template-body "file://serverless.yaml"
-
 aws cloudformation package
    --template-file "serverless.yaml" \
    --output-template-file "serverless_output.yaml" \
@@ -10,7 +7,5 @@ aws cloudformation package
 
 aws cloudformation deploy \
    --template-file "serverless_output.yaml" \
-   --stack-name "serverless_stack" \
+   --stack-name "serverless-stack" \
    --capabilities CAPABILITY_IAM
-
-aws cloudformation describe-stacks
