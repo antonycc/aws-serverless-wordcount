@@ -69,14 +69,14 @@ Install AWS CLI
 
 See Amazon docs: https://docs.aws.amazon.com/cli/latest/userguide/installing.html
 
-Also for macos another option is Brew
+Also for macos, another option is Brew:
 ```bash
 $ brew install awscli
 Warning: awscli 1.14.30 is already installed
 $
 ```
 
-When installed AWS CLI will report version information:
+When installed, AWS CLI will report version information:
 ```bash
 $ aws --version
 aws-cli/1.14.29 Python/2.7.10 Darwin/17.3.0 botocore/1.8.33
@@ -93,7 +93,7 @@ Create a IAM user with the following Polices:
 * Amazon: AWSCloudFormationReadOnlyAccess
 * Custom: Custom policy for Cloud Formation and IAM actions (details below)
 
-Configure the command linme environment with your AWS credentials:
+Configure the command line environment with your AWS credentials:
 ```bash
 $ aws configure
 AWS Access Key ID [None]: ********************
@@ -149,7 +149,7 @@ Successfully created/updated stack - serverless-wordcount-stack
 $
 ```
 
-Clean up
+Clean up:
 ```bash
 $ rm -rf "./target/dist"
 $
@@ -196,7 +196,10 @@ $ aws s3 ls "s3://serverless-wordcount-archive/"
 $
 ```
 
-The CloudWatch console shows serveral log events throughout the execution
+Observe
+-------
+
+The CloudWatch console shows serveral log events throughout the several seconds of execution:
 ```
 [INFO]  2018-01-25T22:23:04.792Z  Found credentials in environment variables.
 START RequestId: 4fb498c2-021e-11e8-a1c0-6b0f475e0486 Version: $LATEST
