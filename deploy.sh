@@ -2,12 +2,12 @@
 
 # Package AWS Lambda with Serverless template:
 aws cloudformation package \
-   --template-file "serverless.yaml" \
-   --output-template-file "serverless_output.yaml" \
-   --s3-bucket "serverless-deploy-28900"
+   --template-file "serverless_wordcount.yaml" \
+   --output-template-file "serverless_wordcount_output.yaml" \
+   --s3-bucket "serverless-wordcount-deploy"
 
 # Deploy AWS Lambda with Serverless template:
 aws cloudformation deploy \
-   --template-file "serverless_output.yaml" \
-   --stack-name "serverless-stack" \
+   --template-file "serverless_wordcount_output.yaml" \
+   --stack-name "serverless-wordcount-stack" \
    --capabilities CAPABILITY_IAM

@@ -1,9 +1,11 @@
-# Serverless lambda example #
+# Serverless Word Count #
 
-Given a bucket with a create trigger  
-and a destination bucket is named in the environment  
-When an object is created  
-Then the object is copied to the destination bucket  
+- [x] Given an archive of multiple files to process
+- [x] When the archive is placed in a bucket
+- [ ] Then the files in the archive are examined
+- [ ] and the words in the sentence fragments are counted in a dataframe
+- [ ] and the data frame is exported to a configured target folder
+- [x] and the processed archive is moved to a configured bucket.
 
 Running
 =======
@@ -50,41 +52,38 @@ $
 Package and Deploy
 ------------------
 
-Create an S3 deployment bucket:
+Choose a name and create an S3 deployment bucket:
 ```bash
-$ echo "${RANDOM?}"
-28900
-$ aws s3 mb s3://serverless-deploy-28900
-make_bucket: serverless-deploy-28900
+$ aws s3 mb s3://serverless-wordcount-deploy
+make_bucket: serverless-wordcount-deploy
 $
 ```
-
-The S3 bucket name just needs to be unique across AWS. Here a random postfix was generated as "28900".
+The chosen name shall also need to be used in the next section.
 
 Package AWS Lambda with Serverless template:
 ```bash
 $ aws cloudformation package \
->   --template-file "serverless.yaml" \
->   --output-template-file "serverless_output.yaml" \
->   --s3-bucket "serverless-deploy-28900"
+>   --template-file "serverless_wordcount.yaml" \
+>   --output-template-file "serverless_wordcount_output.yaml" \
+>   --s3-bucket "serverless-wordcount-deploy"
 
-Uploading to 480a940f6f8347ef3cf31bba3c361c99  17613 / 17613.0  (100.00%)
-Successfully packaged artifacts and wrote output template to file serverless_output.yaml.
+Uploading to 23fe95d8eb5abf3f9e19b593fc2b5bf5  252077 / 252077.0  (100.00%)
+Successfully packaged artifacts and wrote output template to file serverless_wordcount_output.yaml.
 Execute the following command to deploy the packaged template
-aws cloudformation deploy --template-file /Users/antony/projects/aws-serverless-lambda-python/serverless_output.yaml --stack-name <YOUR STACK NAME>
+aws cloudformation deploy --template-file /Users/antony/projects/aws-serverless-wordcount/serverless_wordcount_output.yaml --stack-name <YOUR STACK NAME>
 $ 
 ```
 
 Deploy AWS Lambda with Serverless template:
 ```bash
 $ aws cloudformation deploy \
->    --template-file "serverless_output.yaml" \
->    --stack-name "serverless-stack" \
+>    --template-file "serverless_wordcount_output.yaml" \
+>    --stack-name "serverless-wordcount-stack" \
 >    --capabilities CAPABILITY_IAM
 
 Waiting for changeset to be created..
 Waiting for stack create/update to complete
-Successfully created/updated stack - serverless-stack
+Successfully created/updated stack - serverless-wordcount-stack
 $
 ```
 
@@ -93,18 +92,36 @@ $
 Test
 ----
 
-Create a new file and store it in the source bucket:
+Given an archive of multiple files to process
+When the archive is placed in a bucket
 ```bash
-$ echo "Serverless test file" > "test.txt"
-$ aws s3 cp "test.txt" "s3://serverless-source-bucket/test.txt"
-upload: ./test.txt to s3://serverless-source-bucket/test.txt     
+$ aws s3 cp "fragments-to-process-1K.tar.gz" "s3://serverless-wordcount-hopper/"
+upload: ./fragments-to-process-1K.tar.gz to s3://serverless-wordcount-hopper/fragments-to-process-1K.tar.gz
 $
 ```
 
-Observe that the new file has been copied to the destination bucket:
+When the archive is placed in a bucket
 ```bash
-$ aws s3 ls "s3://serverless-destination-bucket/"
-2018-01-23 18:26:17         21 test.txt
+$ aws s3 ls "s3://serverless-wordcount-hopper/"
+2018-01-24 18:53:17     219613 fragments-to-process-1K.tar.gz   
+$
+```
+
+Then the files in the archive are examined
+and the words in the sentence fragments are counted in a dataframe
+and the data frame is exported to a configured target folder
+```bash
+$ aws s3 ls "s3://serverless-wordcount-result/"
+TODO
+$
+```
+
+and the processed archive is moved to a configured bucket
+```bash
+$ aws s3 ls "s3://serverless-wordcount-hopper/"
+TODO     
+$ aws s3 ls "s3://serverless-wordcount-archive/"
+2018-01-25 01:53:18     219613 fragments-to-process-1K.tar.gz
 $
 ```
 
