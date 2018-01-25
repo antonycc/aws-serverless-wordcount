@@ -10,8 +10,8 @@ Description: 'Given an archive of multiple files to process
 Globals:
   Function:
     Runtime: 'python3.6'
-    MemorySize: 128
-    Timeout: 3
+    MemorySize: 64
+    Timeout: 10
 Resources:
   HopperBucket:
     Type: 'AWS::S3::Bucket'
@@ -31,7 +31,7 @@ Resources:
       FunctionName: 'ServerlessWordCount'
       Description: ''
       Handler: 'lambda_wordcount.lambda_handler'
-      CodeUri: .
+      CodeUri: ./target/dist
       Policies: AmazonS3FullAccess
       Environment:
         Variables:
@@ -42,7 +42,7 @@ Resources:
         BucketEvent:
           Type: S3
           Properties:
-            Bucket: '!Ref HopperBucket'
+            Bucket: !Ref HopperBucket
             Events: s3:ObjectCreated:*
             Filter:
               S3Key:

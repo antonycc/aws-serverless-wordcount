@@ -7,7 +7,6 @@ import uuid
 import logging
 import task_wordcount as task
 from pathlib import Path
-import yaml
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -15,13 +14,11 @@ logger.setLevel(logging.INFO)
 
 def process_all_records(records):
     logger.info('Processing all records...')
-    config = yaml.load(Path("./serverless_wordcount.yaml").read_text())
-    environment_variables = config['Resources']['CopyFunction']['Properties']['Environment']['Variables']
     tmp_path = Path('./tmp')
     hopper_bucket = Path('{}/hopper'.format(tmp_path))
-    result_postfix = environment_variables['ResultPostfix']
-    result_bucket = Path('{}/{}'.format(tmp_path, environment_variables['ResultBucket']))
-    archive_bucket = Path('{}/{}'.format(tmp_path, environment_variables['ArchiveBucket']))
+    result_postfix = '-result.json'
+    result_bucket = Path('{}/{}'.format(tmp_path, 'serverless-wordcount-result'))
+    archive_bucket = Path('{}/{}'.format(tmp_path, 'serverless-wordcount-archive'))
     hopper_bucket.mkdir(parents=True, exist_ok=True) 
     result_bucket.mkdir(parents=True, exist_ok=True) 
     archive_bucket.mkdir(parents=True, exist_ok=True) 
@@ -41,10 +38,12 @@ def process_record(tmp_path, hopper_bucket, object_key, result_bucket, result_po
 
     result_filepath = Path('{}/{}{}'.format(result_bucket, object_key, result_postfix))
     shutil.copy(str(local_result_filepath), str(result_filepath))
-    logger.info('Created {}'.format(str(result_filepath)))
+    logger.info('Created {}'.format(str
+        (result_filepath)))
 
     archive_filepath = Path('{}/{}'.format(archive_bucket, object_key))
     shutil.copy(str(local_source_filepath), str(archive_filepath))
+    os.remove(str(hopper_object_filepath))
     logger.info('Created {}'.format(archive_filepath))
 
 process_all_records(['fragments-to-process-100.tar.gz'])

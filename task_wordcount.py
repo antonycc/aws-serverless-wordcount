@@ -3,7 +3,6 @@
 
 import os
 import logging
-import uuid
 import re
 import json
 #from hashlib import sha256
@@ -42,26 +41,15 @@ def count_from_string(string, wordcount):
    for word in words:
       word = not_alpha.sub('', word)
       word = word.lower()
-      #word = re.sub(r'([^\s\w]|_)+', '', word)
-      #word = str(filter(str.isalpha, word)).strip()
       if word:
          count_word(word, wordcount)
 
-# TODO: Instead of cleaning up the words here, do it during fragment extraction but get it right here first
-
 def count_word(word, wordcount):
-   #unique_key = "{}".format(word)
-   #word_key = "{}".format(sha256(unique_key.encode("utf-8")).hexdigest())
    word_key = word
    if word_key in wordcount:
-      #wordcount[word_key]["count"] += 1
       wordcount[word_key] += 1
    else:
       wordcount[word_key] = 1
-      #wordcount[word_key] = {
-      #   "word": word,
-      #   "count": 1
-      #}
 
 def save_wordcount(descriptor, target_filename):
    logger.info("Saving [{}]".format(target_filename))
