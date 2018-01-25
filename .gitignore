@@ -1,1 +1,4 @@
 serverless_wordcount_output.yaml
+tmp
+__pycache__
+

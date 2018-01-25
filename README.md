@@ -3,8 +3,8 @@
 - [x] Given an archive of multiple files to process
 - [x] When the archive is placed in a bucket
 - [ ] Then the files in the archive are examined
-- [ ] and the words in the sentence fragments are counted in a dataframe
-- [ ] and the data frame is exported to a configured target folder
+- [ ] and the words in the sentence fragments are counted
+- [ ] and the results are exported to a configured target folder
 - [x] and the processed archive is moved to a configured bucket.
 
 Running

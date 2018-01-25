@@ -36,12 +36,13 @@ Resources:
       Environment:
         Variables:
           ResultBucket:  'serverless-wordcount-result'
+          ResultPostfix: '-result.json'
           ArchiveBucket: 'serverless-wordcount-archive'
       Events:
         BucketEvent:
           Type: S3
           Properties:
-            Bucket: !Ref HopperBucket
+            Bucket: '!Ref HopperBucket'
             Events: s3:ObjectCreated:*
             Filter:
               S3Key:
