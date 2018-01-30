@@ -1,11 +1,30 @@
 # Serverless Word Count #
 
+AS IS
 - [x] Given an archive of multiple files to process
 - [x] When the archive is placed in a bucket
 - [x] Then the files in the archive are examined
 - [x] and the words in the sentence fragments are counted
 - [x] and the results are exported to a configured target folder
 - [ ] and the processed archive is moved to a configured bucket.
+
+TO BE
+- [x] Given a PDF containing text
+- [x] When the PDF is placed in a bucket
+- [x] Then the PDF is transformed into fragments
+- [x] and the words in the sentence fragments are counted
+- [x] and the results are exported to a configured target folder
+- [ ] and the processed archive is moved to a configured bucket.
+
+The descriptor contains basic metadata
+```json
+{
+   "downloadedFileAt": "2017-06-25T00:16:00.304541",
+   "downloadedFilename": "4d52dafd817564fcb4f226472d8897637c4b8ec389a9cb7294959370443011b3.pdf",
+   "timestamp": "2017-06-25T00:01:07Z+0100",
+   "type": "pdf_descriptor"
+}
+```
 
 The archive format is a .tar.gz of files with no folder structure:
 ```bash
@@ -21,18 +40,11 @@ $
 The files themselves are JSON containing metadata and a document fragment:
 ```json
 {
-   "countryOfOrigin": "GB",
    "downloadedFileAt": "2017-06-25T00:16:00.304541",
    "downloadedFilename": "4d52dafd817564fcb4f226472d8897637c4b8ec389a9cb7294959370443011b3.pdf",
-   "fragment": "(7)A statutory instrument contai\nning an order under subsection (4) is subject to\nannulment in pursuance of a resolution of the House of Commons.",
-   "geographical_extent": "ukpga",
-   "labels": "legislation, non-fiction",
-   "language": "en",
-   "source": "legislation.gov.uk",
    "timestamp": "2017-06-25T00:01:07Z+0100",
-   "type": "text_descriptor",
-   "url": "http://www.legislation.gov.uk/ukpga/2010/13/pdfs/ukpga_20100013_en.pdf",
-   "year": "2010"
+    "type": "text_descriptor",
+   "fragment": "(7)A statutory instrument contai\nning an order under subsection (4) is subject to\nannulment in pursuance of a resolution of the House of Commons."
 }
 ```
 
@@ -179,8 +191,8 @@ $
 ```
 
 Then the files in the archive are examined
-and the words in the sentence fragments are counted in a dataframe
-and the data frame is exported to a configured target folder
+and the words in the sentence fragments are counted
+and the wordcount is exported to a configured target folder
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-result/"
 2018-01-25 23:23:11      61611 fragments-to-process-1K.tar.gz-result.json
