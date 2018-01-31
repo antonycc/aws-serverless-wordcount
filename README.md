@@ -14,7 +14,7 @@ TO BE
 - [x] Then the PDF is transformed into fragments
 - [x] and the words in the sentence fragments are counted
 - [x] and the results are exported to a configured target folder
-- [ ] and the processed archive is moved to a configured bucket.
+- [ ] and the processed pdf is moved to a configured bucket.
 
 The descriptor contains basic metadata
 ```json
@@ -172,8 +172,7 @@ $
 Test
 ----
 
-Given an archive of multiple files to process
-When the archive is placed in a bucket
+Given a PDF containing text
 ```bash
 $ aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
 $ aws s3 rm "s3://serverless-wordcount-result/" --recursive
@@ -183,23 +182,23 @@ upload: ./fragments-to-process-1K.tar.gz to s3://serverless-wordcount-hopper/fra
 $
 ```
 
-When the archive is placed in a bucket
+When the PDF is placed in a bucket
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-hopper/"
 2018-01-24 18:53:17     219613 fragments-to-process-1K.tar.gz   
 $
 ```
 
-Then the files in the archive are examined
+Then the PDF is transformed into fragments
 and the words in the sentence fragments are counted
-and the wordcount is exported to a configured target folder
+and the results are exported to a configured target folder
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-result/"
 2018-01-25 23:23:11      61611 fragments-to-process-1K.tar.gz-result.json
 $
 ```
 
-and the processed archive is moved to a configured bucket
+and the processed pdf is moved to a configured bucket.
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-hopper/" --summarize
 TODO     

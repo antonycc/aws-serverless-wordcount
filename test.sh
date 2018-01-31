@@ -1,17 +1,18 @@
 #!/bin/bash
 
-echo "Given a pdf to process"
+echo "Given a PDF containing text"
 aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
 aws s3 rm "s3://serverless-wordcount-result/" --recursive
 aws s3 rm "s3://serverless-wordcount-archive/" --recursive
-aws s3 cp "pd-to-process.pdf" "s3://serverless-wordcount-hopper/"
+aws s3 cp "ukpga_20100013_en.pdf" "s3://serverless-wordcount-hopper/"
 
-echo "When the pdf is placed in a bucket"...
+echo "When the PDF is placed in a bucket..."
 aws s3 ls "s3://serverless-wordcount-hopper/"
 
-echo "Then the fragments in the pdf are examined"
-echo "and the words in the sentence fragments are counted in a dataframe"
-echo "and the data frame is exported to a configured target folder"...
+echo "Then the PDF is transformed into fragments"
+echo "and the words in the sentence fragments are counted"
+echo "and the results are exported to a configured target folder"
+echo "and the processed pdf is moved to a configured bucket..."
 echo -n "." ; sleep 1 
 echo -n "." ; sleep 1
 echo -n "." ; sleep 1 
