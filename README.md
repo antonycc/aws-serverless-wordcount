@@ -1,20 +1,12 @@
 # Serverless Word Count #
 
-AS IS
-- [x] Given an archive of multiple files to process
-- [x] When the archive is placed in a bucket
-- [x] Then the files in the archive are examined
-- [x] and the words in the sentence fragments are counted
-- [x] and the results are exported to a configured target folder
-- [ ] and the processed archive is moved to a configured bucket.
-
 TO BE
 - [x] Given a PDF containing text
 - [x] When the PDF is placed in a bucket
 - [x] Then the PDF is transformed into fragments
 - [x] and the words in the sentence fragments are counted
 - [x] and the results are exported to a configured target folder
-- [ ] and the processed pdf is moved to a configured bucket.
+- [x] and the processed pdf is moved to a configured bucket.
 
 The descriptor contains basic metadata
 ```json

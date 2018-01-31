@@ -31,7 +31,7 @@ def process_all_records(records):
         process_record(str(tmp_path), hopper_bucket, object_key, result_bucket, result_postfix, archive_bucket)
 
 def process_record(tmp_path, hopper_bucket, object_key, result_bucket, result_postfix, archive_bucket):
-    local_source_filepath = '{}/{}'.format(tmp_path, uuid.uuid4())
+    local_source_filepath = '{}/{}'.format(tmp_path, object_key)
     s3_client.download_file(hopper_bucket, object_key, local_source_filepath)
 
     filename_prefix = "{}".format(sha256(object_key.encode("utf-8")).hexdigest())

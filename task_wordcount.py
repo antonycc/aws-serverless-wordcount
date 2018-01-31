@@ -14,6 +14,7 @@ import json
 from hashlib import sha256
 from pathlib import Path
 import tarfile
+import datetime
 import PyPDF2
 import timeout_decorator
 
@@ -21,22 +22,22 @@ logger = logging.getLogger()
 
 # Constants
 not_alpha = re.compile("[^a-zA-Z]")
+fragment_separators = re.compile("\.|,|;|:|\-|\+|\*|\?|\|\[|\]|(|)|{|}|\"|\'")
 
 def do_task(tmp_path, pdf_filepath, text_descriptor_filepath, wordcount_filepath, archive_filepath):
-   text_descriptor = generate_and_save_text_descriptor(pdf_filepath)
+   text_descriptor = generate_and_save_text_descriptor(pdf_filepath, text_descriptor_filepath)
    fragments = extract_fragments_from_pdf(pdf_filepath)
    wordcount = generate_and_save_wordcount_from_fragments(fragments, wordcount_filepath)
-   save_fragment_archive(pdf_filepath, fragments, tmp_path, archive_filepath)
-   fragments_path = Path('{}/fragments'.format(tmp_path))
+   save_fragment_archive(pdf_filepath, text_descriptor, fragments, tmp_path, archive_filepath)
 
-def generate_and_save_text_descriptor(pdf_filepath):
+def generate_and_save_text_descriptor(pdf_filepath, text_descriptor_filepath):
    text_descriptor = build_text_descriptor(pdf_filepath)
-   logger.info("Saving descriptor for [{}] as [{}]".format(unique_key, target_filename))
+   logger.info("Saving descriptor for [{}] as [{}]".format(pdf_filepath, text_descriptor_filepath))
    with open(text_descriptor_filepath, 'w') as text_descriptor_file:
       json.dump(text_descriptor, text_descriptor_file, sort_keys=True, indent=3)
    return text_descriptor
 
-def extract_fragments_from_pdf():
+def extract_fragments_from_pdf(pdf_filepath):
    pdf_text = read_pdf_text_from_filepath(pdf_filepath)
    return build_fragment_collection(pdf_text)
 
@@ -47,8 +48,9 @@ def generate_and_save_wordcount_from_fragments(fragments, wordcount_filepath):
    save_wordcount(wordcount, wordcount_filepath)
    return wordcount
 
-def save_fragment_archive(pdf_filepath, fragments, tmp_path, archive_filepath):
+def save_fragment_archive(pdf_filepath, text_descriptor, fragments, tmp_path, archive_filepath):
    fragments_path = Path('{}/fragments'.format(tmp_path))
+   fragments_path.mkdir(parents=True, exist_ok=True) 
    for fragment in fragments:
       fragment_descriptor = build_fragment_descriptor(text_descriptor, fragment)
       fragment_descriptor_filepath = build_fragment_descriptor_filepath(fragments_path, pdf_filepath, fragment)
@@ -57,18 +59,18 @@ def save_fragment_archive(pdf_filepath, fragments, tmp_path, archive_filepath):
       except Exception as e:
          logger.error("Error saving descriptor: {}".format(str(e)), exc_info=True, extra=fragment_descriptor)
    tar = tarfile.open(archive_filepath, 'x:gz')
-   tar.add(str(fragments_path))
+   tar.add(str(fragments_path), arcname='.')
    tar.close() 
 
 def build_fragment_descriptor_filepath(fragments_path, pdf_filepath, fragment):
    unique_key = "{}{}".format(pdf_filepath, fragment)
    fragment_filename = "{}.json".format(sha256(unique_key.encode("utf-8")).hexdigest())
-   return Path.join('{}/{}', fragments_path, fragment_filename)
+   return Path('{}/{}'.format(fragments_path, fragment_filename))
 
 def build_text_descriptor(text_filepath):
    timestamp = datetime.datetime.now().isoformat().replace(":", "-").replace(".", "-")
    return {
-      "filename": text_filepath,
+      "filename": os.path.basename(text_filepath),
       "timestamp": timestamp,
       "type": "pdf_descriptor"
    }
@@ -101,8 +103,11 @@ def extract_page_contents(reader, page_number):
 
 def build_fragment_collection(pdf_text):
    fragments = fragment_separators.split(pdf_text)
-   logger.debug("fragments [{}]".format(len(fragments)))
+   logger.info("fragments to process[{}]".format(len(fragments)))
    return [ fragment.strip() + "." for fragment in fragments if is_fragment(fragment) ]
+
+def is_fragment(fragment):
+   return not (not fragment) and len(fragment.strip()) != 0
 
 def save_fragment_descriptor(descriptor, target_filename):
    logger.info("Saving [{}]".format(target_filename))

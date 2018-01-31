@@ -16,6 +16,7 @@ logger.setLevel(logging.INFO)
 def process_all_records(records):
     logger.info('Processing all records...')
     tmp_path = Path('./tmp')
+    shutil.rmtree(str(tmp_path), ignore_errors=True)
     hopper_bucket = Path('{}/hopper'.format(tmp_path))
     result_postfix = '-result.json'
     result_bucket = Path('{}/{}'.format(tmp_path, 'serverless-wordcount-result'))
@@ -31,15 +32,15 @@ def process_all_records(records):
 
 def process_record(tmp_path, hopper_bucket, object_key, result_bucket, result_postfix, archive_bucket):
     hopper_object_filepath = Path('{}/{}'.format(hopper_bucket, object_key))
-    local_source_filepath = Path('{}/local/{}'.format(tmp_path, uuid.uuid4()))
+    local_source_filepath = Path('{}/local/{}'.format(tmp_path, object_key))
     shutil.copyfile(str(hopper_object_filepath), str(local_source_filepath))
 
     filename_prefix = "{}".format(sha256(object_key.encode("utf-8")).hexdigest())
-    local_descriptor_filename = "{}-descriptor.json".format(filename_prefi)
+    local_descriptor_filename = "{}-descriptor.json".format(filename_prefix)
     local_descriptor_filepath = Path('{}/local/{}'.format(tmp_path, local_descriptor_filename))
-    local_result_filename = "{}-wordcount.json".format(filename_prefi)
+    local_result_filename = "{}-wordcount.json".format(filename_prefix)
     local_result_filepath = Path('{}/local/{}'.format(tmp_path, local_result_filename))
-    local_fragment_archive_filename = "{}-fragments.tar.gz".format(filename_prefi)
+    local_fragment_archive_filename = "{}-fragments.tar.gz".format(filename_prefix)
     local_fragment_archive_filepath = Path('{}/local/{}'.format(tmp_path, local_fragment_archive_filename))
     task.do_task(tmp_path,
         str(local_source_filepath),
