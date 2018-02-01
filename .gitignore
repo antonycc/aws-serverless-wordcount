@@ -1,5 +1,6 @@
 serverless_wordcount_output.yaml
-tmp
+dist
 target
+tmp
 __pycache__
 

@@ -58,6 +58,10 @@ def save_fragment_archive(pdf_filepath, text_descriptor, fragments, tmp_path, ar
          save_fragment_descriptor(fragment_descriptor, fragment_descriptor_filepath)
       except Exception as e:
          logger.error("Error saving descriptor: {}".format(str(e)), exc_info=True, extra=fragment_descriptor)
+   try:
+      os.remove(archive_filepath)
+   except OSError:
+      pass
    tar = tarfile.open(archive_filepath, 'x:gz')
    tar.add(str(fragments_path), arcname='.')
    tar.close() 
@@ -91,7 +95,7 @@ def read_pdf_text_from_filepath(text_filepath):
       text = ""
       for page_number in range(reader.numPages):
          try:
-            logger.info("Obtaining page text from: [{}] page {}".format(text_filepath, page_number))
+            logger.debug("Obtaining page text from: [{}] page {}".format(text_filepath, page_number))
             text += extract_page_contents(reader, page_number)
          except Exception as e:
             logger.error("Error {} while obtaining page text from: [{}] page {}".format(str(e), text_filepath, page_number), exc_info=True)
@@ -103,14 +107,14 @@ def extract_page_contents(reader, page_number):
 
 def build_fragment_collection(pdf_text):
    fragments = fragment_separators.split(pdf_text)
-   logger.info("fragments to process[{}]".format(len(fragments)))
+   logger.debug("fragments to process[{}]".format(len(fragments)))
    return [ fragment.strip() + "." for fragment in fragments if is_fragment(fragment) ]
 
 def is_fragment(fragment):
    return not (not fragment) and len(fragment.strip()) != 0
 
 def save_fragment_descriptor(descriptor, target_filename):
-   logger.info("Saving [{}]".format(target_filename))
+   logger.debug("Saving [{}]".format(target_filename))
    with open(target_filename, 'w') as descriptor_file:
       json.dump(descriptor, descriptor_file, sort_keys=True, indent=3)
 

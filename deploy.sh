@@ -1,9 +1,18 @@
 #!/bin/bash
+# debug
+# aws cloudformation describe-stack-events --stack-name serverless-wordcount-stack | grep "FAILED" -a2 | head -20
 
 # Prepare source files for distribution
-mkdir -p "./target/dist"
-cp "./lambda_wordcount.py" "./target/dist/."
-cp "./task_wordcount.py" "./target/dist/."
+rm -rf "./dist"
+mkdir -p "./dist"
+echo "[install]" >> "./dist/setup.cfg"
+echo "prefix= "  >> "./dist/setup.cfg"
+cp "./lambda_wordcount.py" "./dist/."
+cp "./task_wordcount.py" "./dist/."
+cd "./dist"
+python3 -m pip install PyPDF2 -t "."
+python3 -m pip install timeout-decorator -t "."
+cd ..
 
 # Package AWS Lambda with Serverless template:
 aws cloudformation package \
@@ -18,4 +27,4 @@ aws cloudformation deploy \
    --capabilities CAPABILITY_IAM
 
 # Clean up
-rm -rf "./target/dist"
+#rm -rf "./dist"
