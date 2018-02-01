@@ -14,54 +14,41 @@ The descriptor contains basic metadata
    "downloadedFileAt": "2017-06-25T00:16:00.304541",
    "downloadedFilename": "4d52dafd817564fcb4f226472d8897637c4b8ec389a9cb7294959370443011b3.pdf",
    "timestamp": "2017-06-25T00:01:07Z+0100",
-   "type": "pdf_descriptor"
-}
-```
-
-The archive format is a .tar.gz of files with no folder structure:
-```bash
-$ tar tzf fragments-to-process-1K.tar.gz | head -5
-00018db223b66a677b6e146567c7e7bba8d1c59e207555997d17238dbe6f50cc.json
-00028bc8a2fd8db9264467261c75842b7dfb37f7080fda95041128a8de11d7d6.json
-00035fc8688e35dd3080eeaa2e13bf7a2471f611fbe1f804cbc11d01b966e6f5.json
-0003db3073bd9f19f2b26cc6e802c2f9574085a030d487041a08214572d8842d.json
-000490f3414c3d0234aaaf6caae452c08fbd21d6903c5b1dfd8c26cba08afdef.json
-$ 
-```
-
-The files themselves are JSON containing metadata and a document fragment:
-```json
-{
-   "downloadedFileAt": "2017-06-25T00:16:00.304541",
-   "downloadedFilename": "4d52dafd817564fcb4f226472d8897637c4b8ec389a9cb7294959370443011b3.pdf",
-   "timestamp": "2017-06-25T00:01:07Z+0100",
-    "type": "text_descriptor",
-   "fragment": "(7)A statutory instrument contai\nning an order under subsection (4) is subject to\nannulment in pursuance of a resolution of the House of Commons."
+   "type": "pdf_descriptor",
+   "fragments": []
+      "para graph (1) may include provision (a)conferring functions on registration office rs.",
+      "or local or public authorities.",
+      "to enable applicatio ns to be made in a particular manner.",
+      "(b)conferring other functions on registration officers.",
+      "(c)conferring functions on the Electoral Commission.",
+      "Electoral Registration and Administration Act 2013 (c."
+   ]
 }
 ```
 
 The output is a wordcount over all the fragments:
 ```json
 {
-   "a": 164,
-   "abandonment": 1,
-   "abbey": 1,
-   "aberuthven": 1,
-   "about": 11,
-   "abstract": 1,
-   "ac": 1,
-   "academies": 1,
-   "accordance": 1,
-   "accordingly": 2,
+   "a": 616,
+   "aa": 9,
+   "ab": 11,
+   "abolish": 2,
+   "abolished": 1,
+   "abou": 1,
+   "about": 32,
+   "above": 4,
+   "absent": 31,
 ...
-   "works": 4,
-   "would": 3,
-   "y": 2,
-   "year": 2,
    "years": 3,
-   "young": 4,
-   "z": 1,
-   "za": 1
+   "za": 13,
+   "zb": 9,
+   "zc": 22,
+   "zcregistration": 1,
+   "zd": 21,
+   "zdregistration": 1,
+   "ze": 2,
+   "zeremoval": 1
+}
 }
 ```
 
@@ -85,6 +72,27 @@ When installed, AWS CLI will report version information:
 $ aws --version
 aws-cli/1.14.29 Python/2.7.10 Darwin/17.3.0 botocore/1.8.33
 $
+```
+
+Configure Python libraries
+--------------------------
+
+https://github.com/mstamy2/PyPDF2
+```bash
+$ python3 -m pip install PyPDF2
+Collecting PyPDF2
+Installing collected packages: PyPDF2
+Successfully installed PyPDF2-1.26.0
+$ 
+```
+
+https://pypi.python.org/pypi/timeout-decorator
+```bash
+$ python3 -m pip install timeout-decorator
+Collecting timeout-decorator
+Installing collected packages: timeout-decorator
+Successfully installed timeout-decorator-0.4.0
+$ 
 ```
 
 Configure AWS
@@ -120,10 +128,23 @@ The chosen name shall also need to be used in the next section.
 
 Prepare source files for distribution:
 ```bash
-$ mkdir -p "./target/dist"
-$ cp "./lambda_wordcount.py" "./target/dist/."
-$ cp "./task_wordcount.py" "./target/dist/."
-$
+$ rm -rf "./dist"
+$ mkdir -p "./dist"
+$ echo "[install]" >> "./dist/setup.cfg"
+$ echo "prefix= "  >> "./dist/setup.cfg"
+$ cp "./lambda_wordcount.py" "./dist/."
+$ cp "./task_wordcount.py" "./dist/."
+$ cd "./dist"
+$ python3 -m pip install PyPDF2 -t "."
+Collecting PyPDF2
+Installing collected packages: PyPDF2
+Successfully installed PyPDF2-1.26.0
+$ python3 -m pip install timeout-decorator -t "."
+Collecting timeout-decorator
+Installing collected packages: timeout-decorator
+Successfully installed timeout-decorator-0.4.0
+$ cd ..
+$ 
 ```
 
 Package AWS Lambda with Serverless template:
@@ -155,7 +176,7 @@ $
 
 Clean up:
 ```bash
-$ rm -rf "./target/dist"
+$ rm -rf "./dist"
 $
 ```
 
@@ -169,15 +190,15 @@ Given a PDF containing text
 $ aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
 $ aws s3 rm "s3://serverless-wordcount-result/" --recursive
 $ aws s3 rm "s3://serverless-wordcount-archive/" --recursive
-$ aws s3 cp "fragments-to-process-1K.tar.gz" "s3://serverless-wordcount-hopper/"
-upload: ./fragments-to-process-1K.tar.gz to s3://serverless-wordcount-hopper/fragments-to-process-1K.tar.gz
+$ aws s3 cp "ukpga_20100013_en.pdf" "s3://serverless-wordcount-hopper/"
+upload: ./ukpga_20100013_en.pdf to s3://serverless-wordcount-hopper/ukpga_20100013_en.pdf
 $
 ```
 
 When the PDF is placed in a bucket
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-hopper/"
-2018-01-24 18:53:17     219613 fragments-to-process-1K.tar.gz   
+2018-02-01 19:43:47     357161 ukpga_20100013_en.pdf
 $
 ```
 
@@ -186,16 +207,43 @@ and the words in the sentence fragments are counted
 and the results are exported to a configured target folder
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-result/"
-2018-01-25 23:23:11      61611 fragments-to-process-1K.tar.gz-result.json
+2018-02-01 19:44:09      20418 ukpga_20100013_en.pdf-result.json
+2018-02-01 19:44:09      99375 ukpga_20100013_en.pdf-result.json.descriptor.json
+$ aws s3 cp "s3://serverless-wordcount-result/ukpga_20100013_en.pdf-result.json" "ukpga_20100013_en.pdf-result.json"
+download: s3://serverless-wordcount-result/ukpga_20100013_en.pdf-result.json to ./ukpga_20100013_en.pdf-result.json
+$ head "./ukpga_20100013_en.pdf-result.json"
+{
+   "a": 616,
+   "aa": 9,
+   "ab": 11,
+   "abolish": 2,
+   "abolished": 1,
+   "abou": 1,
+   "about": 32,
+   "above": 4,
+   "absent": 31,
+$ tail ukpga_20100013_en.pdf-result.json
+   "years": 3,
+   "za": 13,
+   "zb": 9,
+   "zc": 22,
+   "zcregistration": 1,
+   "zd": 21,
+   "zdregistration": 1,
+   "ze": 2,
+   "zeremoval": 1
+}
 $
 ```
 
 and the processed pdf is moved to a configured bucket.
 ```bash
 $ aws s3 ls "s3://serverless-wordcount-hopper/" --summarize
-TODO     
+
+Total Objects: 0
+   Total Size: 0  
 $ aws s3 ls "s3://serverless-wordcount-archive/"
-2018-01-25 01:53:18     219613 fragments-to-process-1K.tar.gz
+2018-02-01 19:44:09     357161 ukpga_20100013_en.pdf
 $
 ```
 
@@ -204,16 +252,65 @@ Observe
 
 The CloudWatch console shows serveral log events throughout the several seconds of execution:
 ```
-[INFO]  2018-01-25T22:23:04.792Z  Found credentials in environment variables.
-START RequestId: 4fb498c2-021e-11e8-a1c0-6b0f475e0486 Version: $LATEST
-[INFO]  2018-01-25T22:23:04.829Z  4fb498c2-021e-11e8-a1c0-6b0f475e0486  Processing all records...
-[INFO]  2018-01-25T22:23:04.850Z  4fb498c2-021e-11e8-a1c0-6b0f475e0486  Starting new HTTPS connection (1): s3.eu-central-1.amazonaws.com
-[INFO]  2018-01-25T22:23:07.432Z  4fb498c2-021e-11e8-a1c0-6b0f475e0486  Scanning for fragments in: [/tmp/fragments]
-[INFO]  2018-01-25T22:23:09.830Z  4fb498c2-021e-11e8-a1c0-6b0f475e0486  Saving [/tmp/bb1d3614-a685-4370-974d-0e02186d20e0]
-[INFO]  2018-01-25T22:23:10.88Z 4fb498c2-021e-11e8-a1c0-6b0f475e0486  Created s3://serverless-wordcount-result/fragments-to-process-1K.tar.gz
-[INFO]  2018-01-25T22:23:10.159Z  4fb498c2-021e-11e8-a1c0-6b0f475e0486  Created s3://serverless-wordcount-archive/fragments-to-process-1K.tar.gz
-END RequestId: 4fb498c2-021e-11e8-a1c0-6b0f475e0486
-REPORT RequestId: 4fb498c2-021e-11e8-a1c0-6b0f475e0486  Duration: 5330.27 ms  Billed Duration: 5400 ms Memory Size: 128 MB  Max Memory Used: 41 MB  
+[INFO]  2018-02-01T18:49:32.768Z  Found credentials in environment variables.
+START RequestId: a3ebad7b-0780-11e8-9747-d58c273a1af5 Version: $LATEST
+[INFO]  2018-02-01T18:49:32.815Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Processing all records...
+[INFO]  2018-02-01T18:49:32.838Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Starting new HTTPS connection (1): s3.eu-central-1.amazonaws.com
+[INFO]  2018-02-01T18:49:33.176Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Opening PDF [/tmp/ukpga_20100013_en.pdf]
+[INFO]  2018-02-01T18:49:33.855Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 0
+[INFO]  2018-02-01T18:49:33.916Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 1
+[INFO]  2018-02-01T18:49:33.916Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 2
+[INFO]  2018-02-01T18:49:34.176Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 3
+[INFO]  2018-02-01T18:49:34.376Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 4
+[INFO]  2018-02-01T18:49:34.639Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 5
+[INFO]  2018-02-01T18:49:35.118Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 6
+[INFO]  2018-02-01T18:49:35.577Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 7
+[INFO]  2018-02-01T18:49:35.997Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 8
+[INFO]  2018-02-01T18:49:36.418Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 9
+[INFO]  2018-02-01T18:49:36.936Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 10
+[INFO]  2018-02-01T18:49:37.416Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 11
+[INFO]  2018-02-01T18:49:37.936Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 12
+[INFO]  2018-02-01T18:49:38.357Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 13
+[INFO]  2018-02-01T18:49:38.778Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 14
+[INFO]  2018-02-01T18:49:39.256Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 15
+[INFO]  2018-02-01T18:49:39.718Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 16
+[INFO]  2018-02-01T18:49:40.138Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 17
+[INFO]  2018-02-01T18:49:40.499Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 18
+[INFO]  2018-02-01T18:49:40.939Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 19
+[INFO]  2018-02-01T18:49:41.357Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 20
+[INFO]  2018-02-01T18:49:41.778Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 21
+[INFO]  2018-02-01T18:49:42.256Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 22
+[INFO]  2018-02-01T18:49:42.676Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 23
+[INFO]  2018-02-01T18:49:43.39Z a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 24
+[INFO]  2018-02-01T18:49:43.457Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 25
+[INFO]  2018-02-01T18:49:43.879Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 26
+[INFO]  2018-02-01T18:49:44.296Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 27
+[INFO]  2018-02-01T18:49:44.716Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 28
+[INFO]  2018-02-01T18:49:45.137Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 29
+[INFO]  2018-02-01T18:49:45.596Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 30
+[INFO]  2018-02-01T18:49:45.977Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 31
+[INFO]  2018-02-01T18:49:46.495Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 32
+[INFO]  2018-02-01T18:49:46.958Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 33
+[INFO]  2018-02-01T18:49:47.496Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 34
+[INFO]  2018-02-01T18:49:48.37Z a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 35
+[INFO]  2018-02-01T18:49:48.579Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 36
+[INFO]  2018-02-01T18:49:49.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 37
+[INFO]  2018-02-01T18:49:49.795Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 38
+[INFO]  2018-02-01T18:49:50.317Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 39
+[INFO]  2018-02-01T18:49:50.739Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 40
+[INFO]  2018-02-01T18:49:51.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 41
+[INFO]  2018-02-01T18:49:51.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 42
+[INFO]  2018-02-01T18:49:51.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 43
+[INFO]  2018-02-01T18:49:51.258Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Cleaning text: Currently 91925 characters
+[INFO]  2018-02-01T18:49:51.357Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Separating text: Currently 90650 characters
+FutureWarning: split() requires a non-empty pattern match. [task_wordcount.py:88]
+[INFO]  2018-02-01T18:49:51.575Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Saving descriptor for [/tmp/ukpga_20100013_en.pdf] as [/tmp/c2c142b0cf482def806a7d10c0f12001022b7a6266ca0658df367130c993d5d5-descriptor.json]
+[INFO]  2018-02-01T18:49:51.997Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Saving [/tmp/c2c142b0cf482def806a7d10c0f12001022b7a6266ca0658df367130c993d5d5-wordcount.json]
+[INFO]  2018-02-01T18:49:52.97Z a3ebad7b-0780-11e8-9747-d58c273a1af5  Resetting dropped connection: s3.eu-central-1.amazonaws.com
+[INFO]  2018-02-01T18:49:52.276Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Created s3://serverless-wordcount-result/ukpga_20100013_en.pdf
+[INFO]  2018-02-01T18:49:52.484Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Created s3://serverless-wordcount-archive/ukpga_20100013_en.pdf
+END RequestId: a3ebad7b-0780-11e8-9747-d58c273a1af5
+REPORT RequestId: a3ebad7b-0780-11e8-9747-d58c273a1af5  Duration: 19675.12 ms Billed Duration: 19700 ms Memory Size: 128 MB Max Memory Used: 39 MB  
 ```
 
 (included as test.sh)
