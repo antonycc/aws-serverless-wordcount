@@ -39,21 +39,16 @@ def process_record(tmp_path, hopper_bucket, object_key, result_bucket, result_po
     local_descriptor_filepath = Path('{}/{}'.format(tmp_path, local_descriptor_filename))
     local_result_filename = "{}-wordcount.json".format(filename_prefix)
     local_result_filepath = Path('{}/{}'.format(tmp_path, local_result_filename))
-    local_fragment_archive_filename = "{}-fragments.tar.gz".format(filename_prefix)
-    local_fragment_archive_filepath = Path('{}/{}'.format(tmp_path, local_fragment_archive_filename))
     task.do_task(tmp_path,
         str(local_source_filepath),
         str(local_descriptor_filepath),
-        str(local_result_filepath), 
-        str(local_fragment_archive_filepath))
+        str(local_result_filepath))
 
     result_key = '{}{}'.format(object_key, result_postfix)
     s3_client.upload_file(str(local_result_filepath), result_bucket, result_key)
     logger.info('Created s3://{}/{}'.format(result_bucket, object_key))
     descriptor_key = '{}{}{}'.format(object_key, result_postfix, '.descriptor.json')
     s3_client.upload_file(str(local_descriptor_filepath), result_bucket, descriptor_key)
-    fragment_archive_key = '{}{}{}'.format(object_key, result_postfix, '.fragments.tar.gz')
-    s3_client.upload_file(str(local_fragment_archive_filepath), result_bucket, fragment_archive_key)
 
     s3_client.upload_file(str(local_source_filepath), archive_bucket, object_key)
     s3_client.delete_object(Bucket=hopper_bucket, Key=object_key)

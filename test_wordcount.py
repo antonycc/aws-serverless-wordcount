@@ -40,21 +40,16 @@ def process_record(tmp_path, hopper_bucket, object_key, result_bucket, result_po
     local_descriptor_filepath = Path('{}/local/{}'.format(tmp_path, local_descriptor_filename))
     local_result_filename = "{}-wordcount.json".format(filename_prefix)
     local_result_filepath = Path('{}/local/{}'.format(tmp_path, local_result_filename))
-    local_fragment_archive_filename = "{}-fragments.tar.gz".format(filename_prefix)
-    local_fragment_archive_filepath = Path('{}/local/{}'.format(tmp_path, local_fragment_archive_filename))
     task.do_task(tmp_path,
         str(local_source_filepath),
         str(local_descriptor_filepath),
-        str(local_result_filepath), 
-        str(local_fragment_archive_filepath))
+        str(local_result_filepath))
 
     result_filepath = Path('{}/{}{}'.format(result_bucket, object_key, result_postfix))
     shutil.copy(str(local_result_filepath), str(result_filepath))
     logger.info('Created {}'.format(str(result_filepath)))
     descriptor_filepath = Path('{}/{}{}{}'.format(result_bucket, object_key, result_postfix, ".descriptor.json"))
     shutil.copy(str(local_descriptor_filepath), str(descriptor_filepath))
-    fragment_archive_filepath = Path('{}/{}{}{}'.format(result_bucket, object_key, result_postfix, ".fragments.tar.gz"))
-    shutil.copy(str(local_fragment_archive_filepath), str(fragment_archive_filepath))
 
     archive_filepath = Path('{}/{}'.format(archive_bucket, object_key))
     shutil.copy(str(local_source_filepath), str(archive_filepath))
