@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#echo "Given a PDF containing text"
-#aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
-#aws s3 rm "s3://serverless-wordcount-result/" --recursive
-#aws s3 rm "s3://serverless-wordcount-archive/" --recursive
+echo "Given a PDF containing text"
+aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
+aws s3 rm "s3://serverless-wordcount-result/" --recursive
+aws s3 rm "s3://serverless-wordcount-archive/" --recursive
 
 #echo "When the PDF is placed in a bucket..."
 # Locate API URL
@@ -13,24 +13,11 @@ REST_API_URL="https://${REST_API_ID?}.execute-api.eu-central-1.amazonaws.com/Pro
 FILE="./polycode.co.uk-mug.jpeg"
 base64 "${FILE?}" > "${FILE?}.base64"
 REST_API_TEST_CMD="curl --include --silent --request POST \"${REST_API_URL?}\" --data @"${FILE?}.base64" ; echo"
+#   --header "x-api-key: A Key" \
 echo "Deployed URL:"
 echo "${REST_API_TEST_CMD?}"
 eval "${REST_API_TEST_CMD?}"
-
-#curl --include \
-#   --request GET "https://z5q6vx9dog.execute-api.eu-central-1.amazonaws.com/prod/APIGatewayFunction" \
-#   ; echo
-
-#   --header "x-api-key: KUv40QqXQI9MSU8ISW6Dv3FnsalgRs6S1XaAwVcb" \
-#https://nyvnduohr8.execute-api.eu-central-1.amazonaws.com/test/apath
-
-
-#curl --request POST "some api gateway url" \
-#   --header "-X API KEY"
-#   --header "content type"
-#   --file@"ukpga_20100013_en.pdf"
-#aws s3 ls "s3://serverless-wordcount-hopper/"
-
+aws s3 ls "s3://serverless-wordcount-hopper/"
 
 #echo "Then the PDF is transformed into fragments"
 #echo "and the words in the sentence fragments are counted"

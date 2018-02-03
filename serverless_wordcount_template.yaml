@@ -59,7 +59,8 @@ Resources:
       Policies: AmazonS3FullAccess
       Environment:
         Variables:
-          HopperBucket:  'serverless-wordcount-hopper'
+          HopperBucket: 'serverless-wordcount-hopper'
+          ApiSecret: 'TEMPLATE_API_SECRET'
       Events:
         APIGetEvent:
           Type: Api
