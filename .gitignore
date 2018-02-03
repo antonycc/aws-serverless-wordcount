@@ -4,4 +4,4 @@ dist
 target
 tmp
 __pycache__
-
+*.base64

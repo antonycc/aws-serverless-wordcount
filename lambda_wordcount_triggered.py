@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Purpose: Handle the AWS native elements then hand off a word count
+# Purpose: Handle the AWS native elements then hand off a wordcount
 
 import os
 import logging

@@ -7,7 +7,8 @@ rm -rf "./dist"
 mkdir -p "./dist"
 echo "[install]" >> "./dist/setup.cfg"
 echo "prefix= "  >> "./dist/setup.cfg"
-cp "./lambda_wordcount.py" "./dist/."
+cp "./lambda_wordcount_proxied.py" "./dist/."
+cp "./lambda_wordcount_triggered.py" "./dist/."
 cp "./task_wordcount.py" "./dist/."
 cd "./dist"
 python3 -m pip install PyPDF2 -t "."
@@ -27,4 +28,5 @@ aws cloudformation deploy \
    --capabilities CAPABILITY_IAM
 
 # Clean up
-#rm -rf "./dist"
+rm "serverless_wordcount_output.yaml"
+rm -rf "./dist"

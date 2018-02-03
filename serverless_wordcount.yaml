@@ -25,12 +25,12 @@ Resources:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: 'serverless-wordcount-archive'
-  CopyFunction:
+  ServerlessWordCountTriggeredFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: 'ServerlessWordCount'
+      FunctionName: 'ServerlessWordCountTriggered'
       Description: ''
-      Handler: 'lambda_wordcount.lambda_handler'
+      Handler: 'lambda_wordcount_proxied.lambda_handler'
       CodeUri: ./dist
       Policies: AmazonS3FullAccess
       Environment:
@@ -49,3 +49,25 @@ Resources:
                 Rules:
                   - Name: 'suffix'
                     Value: '.pdf'
+  ServerlessWordCountProxiedFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'ServerlessWordCountProxied'
+      Description: ''
+      Handler: 'lambda_wordcount_proxied.lambda_handler'
+      CodeUri: ./dist
+      Policies: AmazonS3FullAccess
+      Environment:
+        Variables:
+          HopperBucket:  'serverless-wordcount-hopper'
+      Events:
+        APIGetEvent:
+          Type: Api
+          Properties:
+            Path: /wordcount
+            Method: get
+        APIPostEvent:
+          Type: Api
+          Properties:
+            Path: /wordcount
+            Method: post

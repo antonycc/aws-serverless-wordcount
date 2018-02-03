@@ -1,0 +1,64 @@
+#!/bin/bash
+
+#echo "Given a PDF containing text"
+#aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
+#aws s3 rm "s3://serverless-wordcount-result/" --recursive
+#aws s3 rm "s3://serverless-wordcount-archive/" --recursive
+
+#echo "When the PDF is placed in a bucket..."
+# Locate API URL
+REST_API_ID=$(aws apigateway get-rest-apis | jq --raw-output '.items[] | select(.name == "serverless-wordcount-stack") | .id')
+REST_API_URL="https://${REST_API_ID?}.execute-api.eu-central-1.amazonaws.com/Prod/wordcount"
+#REST_API_TEST_CMD="curl --include --silent --request GET \"${REST_API_URL?}\" | head ; echo"
+FILE="./polycode.co.uk-mug.jpeg"
+base64 "${FILE?}" > "${FILE?}.base64"
+REST_API_TEST_CMD="curl --include --silent --request POST \"${REST_API_URL?}\" --data @"${FILE?}.base64" ; echo"
+echo "Deployed URL:"
+echo "${REST_API_TEST_CMD?}"
+eval "${REST_API_TEST_CMD?}"
+
+#curl --include \
+#   --request GET "https://z5q6vx9dog.execute-api.eu-central-1.amazonaws.com/prod/APIGatewayFunction" \
+#   ; echo
+
+#   --header "x-api-key: KUv40QqXQI9MSU8ISW6Dv3FnsalgRs6S1XaAwVcb" \
+#https://nyvnduohr8.execute-api.eu-central-1.amazonaws.com/test/apath
+
+
+#curl --request POST "some api gateway url" \
+#   --header "-X API KEY"
+#   --header "content type"
+#   --file@"ukpga_20100013_en.pdf"
+#aws s3 ls "s3://serverless-wordcount-hopper/"
+
+
+#echo "Then the PDF is transformed into fragments"
+#echo "and the words in the sentence fragments are counted"
+#echo "and the results are exported to a configured target folder"
+#echo "and the processed pdf is moved to a configured bucket..."
+#echo -n "5" ; sleep 1 
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1 
+#echo -n "." ; sleep 1
+#echo -n "4" ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "3" ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1 
+#echo -n "." ; sleep 1
+#echo -n "2" ; sleep 1 
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "1" ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1
+#echo -n "." ; sleep 1 ; echo
+#aws s3 ls "s3://serverless-wordcount-result/"
+
+#echo "and the processed archive is moved..."
+#aws s3 ls "s3://serverless-wordcount-hopper/" --summarize
+#echo "...to a configured bucket..."
+#aws s3 ls "s3://serverless-wordcount-archive/"

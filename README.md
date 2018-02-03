@@ -8,7 +8,7 @@ TO BE
 - [x] and the results are exported to a configured target folder
 - [x] and the processed pdf is moved to a configured bucket.
 
-The descriptor contains basic metadata
+The descriptor contains basic metadata and sentence fragments from the document:
 ```json
 {
    "downloadedFileAt": "2017-06-25T00:16:00.304541",
@@ -48,7 +48,6 @@ The output is a wordcount over all the fragments:
    "zdregistration": 1,
    "ze": 2,
    "zeremoval": 1
-}
 }
 ```
 
@@ -101,7 +100,7 @@ Configure AWS
 Create a IAM user with the following Polices:
 * Amazon: AWSLambdaFullAccess
 * Amazon: AmazonS3FullAccess
-* Amazon: IAMFullAccess
+* Amazon: AmazonAPIGatewayAdministrator
 * Amazon: AWSCloudFormationReadOnlyAccess
 * Custom: Custom policy for Cloud Formation and IAM actions (details below)
 
@@ -321,39 +320,41 @@ Cloud Formation Custom Policy
 This custom policy for Cloud Formation and IAM actions was generated with the Visual Editor:
 ```json
 {
-   "Version":"2012-10-17",
-   "Statement":[
-      {
-         "Sid":"VisualEditor0",
-         "Effect":"Allow",
-         "Action":[
-            "cloudformation:CancelUpdateStack",
-            "cloudformation:CreateStack",
-            "cloudformation:DeleteStack",
-            "cloudformation:SignalResource",
-            "cloudformation:UpdateStack",
-            "cloudformation:UpdateTerminationProtection",
-            "cloudformation:CreateChangeSet",
-            "cloudformation:ExecuteChangeSet",
-            "cloudformation:DeleteChangeSet",
-            "cloudformation:ContinueUpdateRollback"
-         ],
-         "Resource":[
-            "arn:aws:cloudformation:*:*:stack/*/*",
-            "arn:aws:cloudformation:*:*:transform/Serverless-2016-10-31"
-         ]
-      },
-      {
-          "Sid":"VisualEditor1",
-          "Effect":"Allow",
-          "Action":[
-               "iam:CreateRole",
-               "iam:DeleteRole",
-               "iam:DetachRolePolicy",
-               "iam:AttachRolePolicy"
-          ],
-          "Resource":"*"
-      }
-   ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CancelUpdateStack",
+                "cloudformation:CreateStack",
+                "cloudformation:DeleteStack",
+                "cloudformation:SignalResource",
+                "cloudformation:UpdateStack",
+                "cloudformation:UpdateTerminationProtection",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:ContinueUpdateRollback"
+            ],
+            "Resource": [
+                "arn:aws:cloudformation:*:*:stack/*/*",
+                "arn:aws:cloudformation:*:*:transform/Serverless-2016-10-31"
+            ]
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CreateUploadBucket",
+                "iam:CreateRole",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRole",
+                "iam:AttachRolePolicy",
+                "cloudformation:ValidateTemplate"
+            ],
+            "Resource": "*"
+        }
+    ]
 }
 ```
