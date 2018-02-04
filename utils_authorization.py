@@ -8,15 +8,18 @@ import time
 import base64
 from hashlib import sha256
 import re
+import binascii
 
-logging.basicConfig()
+#logging.basicConfig()
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+#logger.setLevel(logging.DEBUG)
 
 authorization_header_prefix = re.compile("Bearer ")
 authorization_header_split = re.compile("\.")
 
 def token_valid(authorization_header, api_secret):
+    logger.info("Checking authorization_header=[{}]".format(authorization_header))
+    logger.debug("with secret=[{}]".format(api_secret))
     authorization_header_components = extract_header_components(authorization_header)
     if len(authorization_header_components) != 2:
         logger.debug("Expected 2 components found {}".format(len(authorization_header_components)))
@@ -24,8 +27,9 @@ def token_valid(authorization_header, api_secret):
     else:
         authorization_user = authorization_header_components[0]
         authorization_signature = authorization_header_components[1]
-        string_to_sign = '{}{}'.format(authorization_user, api_secret)
+        string_to_sign = '{}{}'.format(api_secret, authorization_user)
         generated_signature = generate_signature(string_to_sign)
+        logger.info("generated_signature=[{}]".format(generated_signature))
         if authorization_signature == generated_signature:
             token_descriptor = extract_token_descriptor(authorization_header_components)
             return ('expires' in token_descriptor) and ('user' in token_descriptor)
@@ -37,8 +41,8 @@ def is_current(authorization_header, current_time):
         return False
     else:
         token_descriptor = extract_token_descriptor(authorization_header_components)
-        expires = token_descriptor['expires']
-        logger.info("Token expires at {} and current time {}".format(expires, current_time))
+        expires = int(token_descriptor['expires'])
+        logger.debug("Token expires at {} and current time {}".format(expires, current_time))
         return current_time < expires
 
 def get_user(authorization_header):
@@ -49,8 +53,19 @@ def get_user(authorization_header):
     else:
         token_descriptor = extract_token_descriptor(authorization_header_components)
         user = token_descriptor['user']
-        logger.info("Token identified by user {}".format(user))
+        logger.debug("Token identified by user {}".format(user))
         return user
+
+def get_expires(authorization_header):
+    authorization_header_components = extract_header_components(authorization_header)
+    if len(authorization_header_components) != 2:
+        logger.debug("Expected 2 components found {}".format(len(authorization_header_components)))
+        return None
+    else:
+        token_descriptor = extract_token_descriptor(authorization_header_components)
+        expires = token_descriptor['expires']
+        logger.debug("Token expires {}".format(expires))
+        return expires
 
 def extract_header_components(authorization_header):
     authorization_header_value = authorization_header_prefix.sub("", authorization_header)
@@ -62,13 +77,12 @@ def extract_token_descriptor(authorization_header_components):
     return json.loads(token_descriptor_string)
 
 def generate_signature(string_to_sign):
+    logger.debug('string_to_sign=[{}]'.format(string_to_sign))
     bytes_to_sign = string_to_sign.encode()
     hash = sha256()
     hash.update(bytes_to_sign)
-    digest = hash.digest()
-    signature_bytes = base64.b64encode(digest)
-    signature = signature_bytes.decode()
-    logger.debug("signature=[{}]".format(signature))
+    signature = hash.hexdigest()
+    logger.debug('signature=[{}]'.format(signature))
     return signature
 
 def string_to_base64_encoded_string(s1):

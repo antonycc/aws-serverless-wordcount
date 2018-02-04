@@ -5,6 +5,7 @@ import os
 import logging
 import json
 import time
+import uuid
 import base64
 import boto3
 from pathlib import Path
@@ -18,31 +19,44 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
+
+    # Check Authorization
     api_secret = os.environ['ApiSecret']
     authorization_header = event['headers']['Authorization']
-    current_time = time.time()
+    current_time = int(time.time())
     if not auth.token_valid(authorization_header, api_secret):
         return {
             'statusCode': HTTPStatus.UNAUTHORIZED,
             'headers': {}
         }
-    else if not auth.is_current(authorization_header, current_time):
+    elif not auth.is_current(authorization_header, current_time):
         return {
             'statusCode': HTTPStatus.FORBIDDEN,
             'headers': {}
         }
-    else if event['httpMethod'] == 'GET':
+    user = auth.get_user(authorization_header)
+    expires = auth.get_expires(authorization_header)
+    logger.info('Accepted bearer token for: {} (expires:{})'.format(user, expires))
+
+    # Respond according to the HTTP verb
+    if event['httpMethod'] == 'GET':
         return {
             'statusCode': HTTPStatus.OK,
             'headers': {}
         }
-    else if event['httpMethod'] == 'POST':
+    elif event['httpMethod'] == 'POST':
         body = base64.b64decode(event['body'])
-        if 'filename' in event['queryStringParameters']:
-            filename = event['queryStringParameters']['filename']
-            upload_body(body, filename)
-        else:
-            upload_body(body)
+        filename = None
+        # TODO: When filename argument is ommited this error occurs
+        #   argument of type 'NoneType' is not iterable: TypeError
+        #   Traceback (most recent call last):
+        #   File "/var/task/lambda_wordcount_proxied.py", line 51, in lambda_handler
+        #   if 'filename' in event['queryStringParameters']:
+        #   TypeError: argument of type 'NoneType' is not iterable
+        if 'queryStringParameters' in event:
+            if 'filename' in event['queryStringParameters']:
+                filename = event['queryStringParameters']['filename']
+        upload_body(body, filename)
         return {
             'statusCode': HTTPStatus.ACCEPTED,
             'headers': {}

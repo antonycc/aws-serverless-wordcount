@@ -30,7 +30,7 @@ Resources:
     Properties:
       FunctionName: 'ServerlessWordCountTriggered'
       Description: ''
-      Handler: 'lambda_wordcount_proxied.lambda_handler'
+      Handler: 'lambda_wordcount_triggered.lambda_handler'
       CodeUri: ./dist
       Policies: AmazonS3FullAccess
       Environment:

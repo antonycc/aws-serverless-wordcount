@@ -16,17 +16,9 @@ python3 -m pip install PyPDF2 -t "."
 python3 -m pip install timeout-decorator -t "."
 cd ..
 
-# Create API secret and bearer token
+# Create API secret and embed in Serverless template
 API_SECRET="$(uuidgen)"
-API_USER="local"
-API_TOKEN_EXPIRES="echo $(($(date +'%s + 3600')))"
-API_TOKEN_DESCRIPTOR="{ \"user\": \"${API_USER?}\", \"expires\": \"${API_TOKEN_EXPIRES?}\" }"
-API_AUTHORIZATION_USER=$(echo -n "${API_TOKEN_DESCRIPTOR?}" | base64)
-API_AUTHORIZATION_SIGNATURE=$(echo -n "${API_SECRET?}${API_AUTHORIZATION_USER?}" | openssl sha -sha256)
-export API_AUTHORIZATION="${API_AUTHORIZATION_USER?}.${API_AUTHORIZATION_SIGNATURE?}"
 sed -e 's/TEMPLATE_API_SECRET/'${API_SECRET?}'/g' "./serverless_wordcount_template.yaml" > "./serverless_wordcount.yaml"
-echo "API_SECRET=\"${API_SECRET?}\""
-echo "API_AUTHORIZATION=\"${API_AUTHORIZATION?}\""
 
 # Package AWS Lambda with Serverless template:
 aws cloudformation package \
