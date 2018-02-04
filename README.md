@@ -1,6 +1,5 @@
 # Serverless Word Count #
 
-TO BE
 - [x] Given a PDF containing text
 - [x] When the PDF is placed in a bucket
 - [x] Then the PDF is transformed into fragments
@@ -15,7 +14,7 @@ The descriptor contains basic metadata and sentence fragments from the document:
    "downloadedFilename": "4d52dafd817564fcb4f226472d8897637c4b8ec389a9cb7294959370443011b3.pdf",
    "timestamp": "2017-06-25T00:01:07Z+0100",
    "type": "pdf_descriptor",
-   "fragments": []
+   "fragments": [
       "para graph (1) may include provision (a)conferring functions on registration office rs.",
       "or local or public authorities.",
       "to enable applicatio ns to be made in a particular manner.",
@@ -38,7 +37,7 @@ The output is a wordcount over all the fragments:
    "about": 32,
    "above": 4,
    "absent": 31,
-...
+#...truncated...
    "years": 3,
    "za": 13,
    "zb": 9,
