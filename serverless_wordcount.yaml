@@ -1,0 +1,74 @@
+#  https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Given a PDF containing text
+  When the PDF is placed in a bucket
+  Then the PDF is transformed into fragments
+  and the words in the sentence fragments are counted
+  and the results are exported to a configured target folder
+  and the processed pdf is moved to a configured bucket.'
+Globals:
+  Function:
+    Runtime: 'python3.6'
+    MemorySize: 128
+    Timeout: 60
+Resources:
+  HopperBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'serverless-wordcount-hopper'
+  ResultBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'serverless-wordcount-result'
+  ArchiveBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'serverless-wordcount-archive'
+  ServerlessWordCountTriggeredFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'ServerlessWordCountTriggered'
+      Description: ''
+      Handler: 'lambda_wordcount_proxied.lambda_handler'
+      CodeUri: ./dist
+      Policies: AmazonS3FullAccess
+      Environment:
+        Variables:
+          ResultBucket:  'serverless-wordcount-result'
+          ResultPostfix: '-result.json'
+          ArchiveBucket: 'serverless-wordcount-archive'
+      Events:
+        BucketEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref HopperBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: 'suffix'
+                    Value: '.pdf'
+  ServerlessWordCountProxiedFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'ServerlessWordCountProxied'
+      Description: ''
+      Handler: 'lambda_wordcount_proxied.lambda_handler'
+      CodeUri: ./dist
+      Policies: AmazonS3FullAccess
+      Environment:
+        Variables:
+          HopperBucket: 'serverless-wordcount-hopper'
+          ApiSecret: '68447F94-B6D1-4FF1-A417-B02DA1689C60'
+      Events:
+        APIGetEvent:
+          Type: Api
+          Properties:
+            Path: /wordcount
+            Method: get
+        APIPostEvent:
+          Type: Api
+          Properties:
+            Path: /wordcount
+            Method: post
