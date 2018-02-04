@@ -9,6 +9,7 @@ import base64
 import boto3
 from pathlib import Path
 import utils_authorization as auth
+from http import HTTPStatus
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -22,35 +23,42 @@ def lambda_handler(event, context):
     current_time = time.time()
     if not auth.token_valid(authorization_header, api_secret):
         return {
-            "statusCode": 401,
-            "headers": {}
+            'statusCode': HTTPStatus.UNAUTHORIZED,
+            'headers': {}
         }
     else if not auth.is_current(authorization_header, current_time):
         return {
-            "statusCode": 403,
-            "headers": {}
+            'statusCode': HTTPStatus.FORBIDDEN,
+            'headers': {}
         }
-    else if event['httpMethod'] == "GET":
+    else if event['httpMethod'] == 'GET':
         return {
-            "statusCode": 200,
-            "headers": {}
+            'statusCode': HTTPStatus.OK,
+            'headers': {}
         }
-    else if event['httpMethod'] == "POST":
-        # TODO if filename in query parameter
-        # TODO     object_key = filename in query parameter
-        # TODO  else:
-        object_key = uuid.uuid4()
-        tmp_file = Path('/tmp/{}'.format(uuid.uuid4()))
-        body_bytes = base64.b64decode(event['body'])
-        open(str(tmp_file), 'wb').write(body_bytes)
-        hopper_bucket = os.environ['HopperBucket']
-        s3_client.upload_file(str(tmp_file), hopper_bucket, object_key)
+    else if event['httpMethod'] == 'POST':
+        body = base64.b64decode(event['body'])
+        if 'filename' in event['queryStringParameters']:
+            filename = event['queryStringParameters']['filename']
+            upload_body(body, filename)
+        else:
+            upload_body(body)
         return {
-            "statusCode": 202,
-            "headers": {}
+            'statusCode': HTTPStatus.ACCEPTED,
+            'headers': {}
         }
     else:
         return {
-            "statusCode": 405,
-            "headers": {}
+            'statusCode': HTTPStatus.METHOD_NOT_ALLOWED,
+            'headers': {}
         }
+
+def upload_body(body, object_key=None):
+    if object_key == None:
+        object_key = '{}'.format(uuid.uuid4())
+    tmp_file = Path('/tmp/{}'.format(uuid.uuid4()))
+    open(str(tmp_file), 'wb').write(body)
+    hopper_bucket = os.environ['HopperBucket']
+    logger.info('Uploading {} to bucket {} using key {}'.format(str(tmp_file), hopper_bucket, object_key))
+    s3_client.upload_file(str(tmp_file), hopper_bucket, object_key)
+
