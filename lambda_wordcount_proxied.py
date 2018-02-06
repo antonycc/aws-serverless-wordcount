@@ -8,13 +8,14 @@ import time
 import uuid
 import base64
 import boto3
+from http import HTTPStatus
 from pathlib import Path
 import utils_authorization as auth
-from http import HTTPStatus
+import task_wordcount as task
 
 logging.basicConfig()
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 s3_client = boto3.client('s3')
 
@@ -74,11 +75,12 @@ def get_query_string_parameters(request):
     is_synchronous = False
     if ('queryStringParameters' in request) and request['queryStringParameters']:
         if 'filename' in request['queryStringParameters']:
-            filename = request['queryStringParameters']['filename']
-        is_synchronous = ('is_synchronous' in request['queryStringParameters'])
+            qparams['filename'] = request['queryStringParameters']['filename']
+        qparams['is_synchronous'] = ('is_synchronous' in request['queryStringParameters'])
     return qparams
 
 def upload_body(body, object_key=None):
+    logger.info('Asynchronous processing...')
     if object_key == None:
         object_key = '{}'.format(uuid.uuid4())
     tmp_file = Path('/tmp/{}'.format(uuid.uuid4()))
@@ -92,6 +94,7 @@ def upload_body(body, object_key=None):
     }
 
 def process_body(body):
+    logger.info('Synchronous processing...')
     tmp_path = Path('/tmp')
     local_source_filepath = Path('/tmp/{}'.format(uuid.uuid4()))
     open(str(local_source_filepath), 'wb').write(body)
@@ -102,12 +105,12 @@ def process_body(body):
         str(local_descriptor_filepath),
         str(local_result_filepath))
     local_result_bytes = open(str(local_result_filepath), 'rb').read()
-    body = base64.b64encode(local_result_bytes)
+    local_result = local_result_bytes.decode()
+    body = json.dumps(local_result, indent=4)
+    #'Content-Length': len(local_result_bytes)
     return {
         'statusCode': HTTPStatus.OK,
-        'headers': { 'Content-Type': 'application/json',
-            'Content-Length': len(local_result_bytes)
-        },
+        'headers': { 'Content-Type': 'application/json' },
         'body': body
     }
 

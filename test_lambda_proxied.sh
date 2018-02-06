@@ -48,7 +48,7 @@ aws s3 rm "s3://serverless-wordcount-archive/" --recursive
 echo "When the PDF is synronously sent..."
 FILENAME="ukpga_20100013_en.pdf"
 base64 "./${FILENAME?}" > "./${FILENAME?}.base64"
-REST_API_TEST_CMD="curl --include --request POST \"${REST_API_URL?}?is_synchronous=true\" --header \"${AUTHORIZATION_HEADER?}\" --data @\"./${FILENAME?}.base64\" --output \"./${FILENAME?}-sync-result.json\" | head -20 ; echo"
+REST_API_TEST_CMD="curl --include --silent --request POST \"${REST_API_URL?}?is_synchronous=true\" --header \"${AUTHORIZATION_HEADER?}\" --data @\"./${FILENAME?}.base64\" --output \"./${FILENAME?}-sync-result.json\" | head -20 ; echo"
 echo "${REST_API_TEST_CMD?}"
 eval "${REST_API_TEST_CMD?}"
 
