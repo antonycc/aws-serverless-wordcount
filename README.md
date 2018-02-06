@@ -7,9 +7,6 @@
 - [x] and the results are exported to a configured target folder
 - [x] and the processed pdf is moved to a configured bucket.
 
-Bugs:
-- [ ] When the filename is ommited the API returns 502 (expected: filename is generated)
-
 The descriptor contains basic metadata and sentence fragments from the document:
 ```json
 {

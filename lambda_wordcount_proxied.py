@@ -18,12 +18,20 @@ logger.setLevel(logging.INFO)
 
 s3_client = boto3.client('s3')
 
-def lambda_handler(event, context):
+def lambda_handler(request, context):
+    logger.info('REQUEST:')
+    logger.info(request)
+    api_secret = os.environ['ApiSecret']
+    authorization_header = request['headers']['Authorization']
+    current_time = int(time.time())
+    response = web_handler(request, authorization_header, api_secret, current_time)
+    logger.info('RESPONSE:')
+    logger.info(response)
+    return response
+
+def web_handler(event, authorization_header, api_secret, current_time):
 
     # Check Authorization
-    api_secret = os.environ['ApiSecret']
-    authorization_header = event['headers']['Authorization']
-    current_time = int(time.time())
     if not auth.token_valid(authorization_header, api_secret):
         return {
             'statusCode': HTTPStatus.UNAUTHORIZED,
@@ -53,7 +61,7 @@ def lambda_handler(event, context):
         #   File "/var/task/lambda_wordcount_proxied.py", line 51, in lambda_handler
         #   if 'filename' in event['queryStringParameters']:
         #   TypeError: argument of type 'NoneType' is not iterable
-        if 'queryStringParameters' in event:
+        if ('queryStringParameters' in event) and event['queryStringParameters']:
             if 'filename' in event['queryStringParameters']:
                 filename = event['queryStringParameters']['filename']
         upload_body(body, filename)
