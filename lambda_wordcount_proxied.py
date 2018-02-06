@@ -19,14 +19,14 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client('s3')
 
 def lambda_handler(request, context):
-    logger.info('REQUEST:')
-    logger.info(request)
+    logger.debug('REQUEST:')
+    logger.debug(request)
     api_secret = os.environ['ApiSecret']
     authorization_header = request['headers']['Authorization']
     current_time = int(time.time())
     response = web_handler(request, authorization_header, api_secret, current_time)
-    logger.info('RESPONSE:')
-    logger.info(response)
+    logger.debug('RESPONSE:')
+    logger.debug(response)
     return response
 
 def web_handler(event, authorization_header, api_secret, current_time):
@@ -54,26 +54,29 @@ def web_handler(event, authorization_header, api_secret, current_time):
         }
     elif event['httpMethod'] == 'POST':
         body = base64.b64decode(event['body'])
-        filename = None
-        # TODO: When filename argument is ommited this error occurs
-        #   argument of type 'NoneType' is not iterable: TypeError
-        #   Traceback (most recent call last):
-        #   File "/var/task/lambda_wordcount_proxied.py", line 51, in lambda_handler
-        #   if 'filename' in event['queryStringParameters']:
-        #   TypeError: argument of type 'NoneType' is not iterable
-        if ('queryStringParameters' in event) and event['queryStringParameters']:
-            if 'filename' in event['queryStringParameters']:
-                filename = event['queryStringParameters']['filename']
-        upload_body(body, filename)
-        return {
-            'statusCode': HTTPStatus.ACCEPTED,
-            'headers': {}
-        }
+        qparams = get_query_string_parameters(event)
+        if qparams['is_synchronous']:
+            return process_body(body)
+        else:
+            return upload_body(body, qparams['filename'])
     else:
         return {
             'statusCode': HTTPStatus.METHOD_NOT_ALLOWED,
             'headers': {}
         }
+
+def get_query_string_parameters(request):
+    qparams = {
+        'filename': None,
+        'is_synchronous': False    
+    }
+    filename = None
+    is_synchronous = False
+    if ('queryStringParameters' in request) and request['queryStringParameters']:
+        if 'filename' in request['queryStringParameters']:
+            filename = request['queryStringParameters']['filename']
+        is_synchronous = ('is_synchronous' in request['queryStringParameters'])
+    return qparams
 
 def upload_body(body, object_key=None):
     if object_key == None:
@@ -83,4 +86,28 @@ def upload_body(body, object_key=None):
     hopper_bucket = os.environ['HopperBucket']
     logger.info('Uploading {} to bucket {} using key {}'.format(str(tmp_file), hopper_bucket, object_key))
     s3_client.upload_file(str(tmp_file), hopper_bucket, object_key)
+    return {
+        'statusCode': HTTPStatus.ACCEPTED,
+        'headers': {}
+    }
+
+def process_body(body):
+    tmp_path = Path('/tmp')
+    local_source_filepath = Path('/tmp/{}'.format(uuid.uuid4()))
+    open(str(local_source_filepath), 'wb').write(body)
+    local_descriptor_filepath = Path('/tmp/{}'.format(uuid.uuid4()))
+    local_result_filepath = Path('/tmp/{}'.format(uuid.uuid4()))
+    task.do_task(str(tmp_path),
+        str(local_source_filepath),
+        str(local_descriptor_filepath),
+        str(local_result_filepath))
+    local_result_bytes = open(str(local_result_filepath), 'rb').read()
+    body = base64.b64encode(local_result_bytes)
+    return {
+        'statusCode': HTTPStatus.OK,
+        'headers': { 'Content-Type': 'application/json',
+            'Content-Length': len(local_result_bytes)
+        },
+        'body': body
+    }
 

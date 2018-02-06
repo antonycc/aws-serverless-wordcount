@@ -1,5 +1,6 @@
 serverless_wordcount_output.yaml
 ukpga_20100013_en.pdf-result.json
+ukpga_20100013_en.pdf-sync-result.json
 dist
 target
 tmp

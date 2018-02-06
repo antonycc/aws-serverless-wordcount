@@ -7,6 +7,10 @@
 - [x] and the results are exported to a configured target folder
 - [x] and the processed pdf is moved to a configured bucket.
 
+TODO
+- [ ] Get sync job to generate response
+- [ ] In sync job, pass the bytes, return the result, don't write files at all
+
 The descriptor contains basic metadata and sentence fragments from the document:
 ```json
 {
