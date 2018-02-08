@@ -9,6 +9,8 @@ import base64
 from hashlib import sha256
 import re
 import binascii
+from http import HTTPStatus
+import lambda_wordcount_proxied
 
 #logging.basicConfig()
 logger = logging.getLogger()
@@ -16,6 +18,26 @@ logger = logging.getLogger()
 
 authorization_header_prefix = re.compile("Bearer ")
 authorization_header_split = re.compile("\.")
+
+def auth_header_valid(authorization_header, api_secret, current_time):
+    if not token_valid(authorization_header, api_secret):
+        return {
+            'statusCode': HTTPStatus.UNAUTHORIZED,
+            'headers': {}
+        }
+    elif not is_current(authorization_header, current_time):
+        return {
+            'statusCode': HTTPStatus.FORBIDDEN,
+            'headers': {}
+        }
+    else:
+        user = get_user(authorization_header)
+        expires = get_expires(authorization_header)
+        logger.info('Accepted bearer token for: {} (expires:{})'.format(user, expires))
+        return {
+            'statusCode': HTTPStatus.OK,
+            'headers': {}
+        }
 
 def token_valid(authorization_header, api_secret):
     logger.info("Checking authorization_header=[{}]".format(authorization_header))
@@ -105,4 +127,11 @@ def base64_encoded_string_to_string(s1):
     #logger.debug('decode: s4=[{}]'.format(s4))
     return s4
 
-
+def filter_dict(d1, ks, n):
+    d2 = {}
+    for k in d1:
+        if (k in ks) and (d1[k] != None):
+            d2[k] = d1[k][:n]
+        else:
+            d2[k] = d1[k]
+    return d2

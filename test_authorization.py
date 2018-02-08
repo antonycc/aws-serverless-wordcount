@@ -36,6 +36,32 @@ def test_base64():
         logger.error("FAIL::test_base64 (decoded value mutated)")
         exit(1)
 
+def test_filter_dict(d):
+    keep = 'keep'
+    filter = 'filter'
+    d1 = {keep: 'this', 'and': '', filter: 'that-out'}
+    ks = [filter]
+    n = 4
+    d2 = filter_dict(d1, ks, n)
+    if (d2[keep] == 'this') and (d2[filter] == 'that'):
+        logger.info("PASS::test_filter_dict")
+    else:
+        logger.error("FAIL::test_filter_dict")
+        exit(1)
+
+def test_auth_header_valid():
+    user = 'user-{}'.format(uuid.uuid4())
+    current_time = time.time()
+    expires = int(time.time()) + 30
+    secret = '{}'.format(uuid.uuid4())
+    authorization_header = generate_token(user, expires, secret)
+    logger.debug("authorization_header=[{}]".format(authorization_header))
+    if module_under_test.auth_header_valid(authorization_header, secret, current_time):
+        logger.info("PASS::test_token_valid")
+    else:
+        logger.error("FAIL::test_token_valid")
+        exit(1)
+
 def test_token_valid():
     user = 'user-{}'.format(uuid.uuid4())
     expires = int(time.time()) + 30
@@ -182,6 +208,7 @@ def generate_token(user, expires, secret):
 
 def run_tests():
     test_base64()
+    test_base64()
     test_token_valid()
     test_environment_valid()
     test_token_invalid_missing_expires()
@@ -193,5 +220,6 @@ def run_tests():
     test_token_not_user()
     test_token_expires()
     test_token_not_expires()
+    test_auth_header_valid()
 
 run_tests()

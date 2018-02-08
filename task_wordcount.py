@@ -27,10 +27,10 @@ unwanted_whitespace = re.compile("\n|\u0160|\ufb01|\ufb02")
 many_spaces = re.compile(" +")
 fragment_separators = re.compile("\.|,|;|:|\-|\+|\*|\?|\|\[|\]|(|)|{|}|\"|\'")
 
-def do_task(tmp_path, pdf_filepath, text_descriptor_filepath, wordcount_filepath):
+def do_task(tmp_path, pdf_filepath, text_descriptor_filepath, wordcount_filepath=None):
    fragments = extract_fragments_from_pdf(pdf_filepath)
    text_descriptor = generate_and_save_text_descriptor(pdf_filepath, fragments, text_descriptor_filepath)
-   wordcount = generate_and_save_wordcount_from_fragments(fragments, wordcount_filepath)
+   return generate_and_save_wordcount_from_fragments(fragments, wordcount_filepath)
 
 def generate_and_save_text_descriptor(pdf_filepath, fragments, text_descriptor_filepath):
    text_descriptor = build_text_descriptor(pdf_filepath, fragments)
@@ -48,7 +48,8 @@ def generate_and_save_wordcount_from_fragments(fragments, wordcount_filepath):
    wordcount = {}
    for fragment in fragments:
       wordcount_from_string(fragment, wordcount)
-   save_wordcount(wordcount, wordcount_filepath)
+   if wordcount_filepath:
+      save_wordcount(wordcount, wordcount_filepath)
    return wordcount
 
 def build_text_descriptor(text_filepath, fragments):
