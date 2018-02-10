@@ -1,4 +1,5 @@
 #!/bin/bash
+# Exercise the deployed service by directly transfering contents to and from buckets
 
 echo "Given a PDF containing text"
 aws s3 rm "s3://serverless-wordcount-hopper/" --recursive

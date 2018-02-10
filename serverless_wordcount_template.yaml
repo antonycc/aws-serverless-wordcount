@@ -59,13 +59,15 @@ Resources:
       Policies: AmazonS3FullAccess
       Environment:
         Variables:
-          HopperBucket: 'serverless-wordcount-hopper'
           ApiSecret: 'TEMPLATE_API_SECRET'
+          HopperBucket: 'serverless-wordcount-hopper'
+          ResultBucket:  'serverless-wordcount-result'
+          ResultPostfix: '-result.json'
       Events:
         APIGetEvent:
           Type: Api
           Properties:
-            Path: /wordcount
+            Path: /wordcount/{proxy+}
             Method: get
         APIPostEvent:
           Type: Api

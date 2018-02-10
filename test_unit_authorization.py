@@ -9,45 +9,12 @@ import json
 import base64
 import logging
 import utils_authorization as module_under_test
-from pathlib import Path
+import utils_transform as transform
 from hashlib import sha256
 
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-def test_base64():
-    key = 'key-{}'.format(uuid.uuid4())
-    expected_value = 'value-{}'.format(uuid.uuid4())
-    obj = { key: expected_value}
-    expected_string = json.dumps(obj)
-    encoded = module_under_test.string_to_base64_encoded_string(expected_string)
-    decoded = module_under_test.base64_encoded_string_to_string(encoded)
-    #logger.debug("encoded=[{}]".format(encoded))
-    if expected_string == encoded:
-        logger.info("FAIL::test_base64 (encoded string is unchanged)")
-    if expected_string != decoded:
-        logger.info("FAIL::test_base64 (decoded string does not match original)")
-    decoded_obj = json.loads(decoded)
-    decoded_value = decoded_obj[key]
-    if expected_value == decoded_value:
-        logger.info("PASS::test_base64")
-    else:
-        logger.error("FAIL::test_base64 (decoded value mutated)")
-        exit(1)
-
-def test_filter_dict(d):
-    keep = 'keep'
-    filter = 'filter'
-    d1 = {keep: 'this', 'and': '', filter: 'that-out'}
-    ks = [filter]
-    n = 4
-    d2 = filter_dict(d1, ks, n)
-    if (d2[keep] == 'this') and (d2[filter] == 'that'):
-        logger.info("PASS::test_filter_dict")
-    else:
-        logger.error("FAIL::test_filter_dict")
-        exit(1)
 
 def test_auth_header_valid():
     user = 'user-{}'.format(uuid.uuid4())
@@ -194,7 +161,7 @@ def generate_token(user, expires, secret):
         token_descriptor['user'] = user
     if expires != None:
         token_descriptor['expires'] = expires
-    authorization_user = module_under_test.string_to_base64_encoded_string(json.dumps(token_descriptor))
+    authorization_user = transform.string_to_base64_encoded_string(json.dumps(token_descriptor))
     #logger.debug('authorization_user=[{}]'.format(authorization_user))
     string_to_sign = '{}{}'.format(secret, 
         authorization_user)
@@ -207,8 +174,6 @@ def generate_token(user, expires, secret):
     return 'Bearer {}.{}'.format(authorization_user, authorization_signature)
 
 def run_tests():
-    test_base64()
-    test_base64()
     test_token_valid()
     test_environment_valid()
     test_token_invalid_missing_expires()
