@@ -2,7 +2,7 @@
 # Exercise the deployed service proxied through the API Gateway
 
 echo "Querying deployment details"
-export API_SECRET=$(aws lambda get-function --function-name "ServerlessWordCountProxied" | jq --raw-output '.Configuration.Environment.Variables.ApiSecret')
+API_SECRET=$(aws lambda get-function --function-name "ServerlessWordCountProxied" | jq --raw-output '.Configuration.Environment.Variables.ApiSecret')
 REST_API_ID=$(aws apigateway get-rest-apis | jq --raw-output '.items[] | select(.name == "serverless-wordcount-stack") | .id')
 REST_API_URL="https://${REST_API_ID?}.execute-api.eu-central-1.amazonaws.com/Prod"
 echo
@@ -13,7 +13,7 @@ API_TOKEN_EXPIRES="$(($(date +'%s + 3600')))"
 API_TOKEN_DESCRIPTOR="{ \"user\": \"${API_USER?}\", \"expires\": \"${API_TOKEN_EXPIRES?}\" }"
 API_AUTHORIZATION_USER=$(echo -n "${API_TOKEN_DESCRIPTOR?}" | base64)
 API_AUTHORIZATION_SIGNATURE=$(echo -n "${API_SECRET?}${API_AUTHORIZATION_USER?}" | openssl sha -sha256)
-export API_AUTHORIZATION="${API_AUTHORIZATION_USER?}.${API_AUTHORIZATION_SIGNATURE?}"
+API_AUTHORIZATION="${API_AUTHORIZATION_USER?}.${API_AUTHORIZATION_SIGNATURE?}"
 echo "API_SECRET=\"${API_SECRET?}\""
 echo "API_AUTHORIZATION=\"${API_AUTHORIZATION?}\""
 echo

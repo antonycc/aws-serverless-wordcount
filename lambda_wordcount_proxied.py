@@ -16,7 +16,7 @@ import task_wordcount as task
 
 logging.basicConfig()
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 def lambda_handler(request, context):
     log_request_response('REQUEST:', request)

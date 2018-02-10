@@ -8,30 +8,14 @@
 - [x] and the processed pdf is moved to a configured bucket.
 
 TODO
-- [ ] supply the Retry-After header and consume (in tests) by looping that number of seconds between tries
-- [ ] change README to describe the async API
-- [ ] document bearer token in README
 - [ ] unit test framework
 - [ ] code style check
 - [ ] scripted build (or at least all scripts in python)
-
-The descriptor contains basic metadata and sentence fragments from the document:
-```json
-{
-   "downloadedFileAt": "2017-06-25T00:16:00.304541",
-   "downloadedFilename": "4d52dafd817564fcb4f226472d8897637c4b8ec389a9cb7294959370443011b3.pdf",
-   "timestamp": "2017-06-25T00:01:07Z+0100",
-   "type": "pdf_descriptor",
-   "fragments": [
-      "para graph (1) may include provision (a)conferring functions on registration office rs.",
-      "or local or public authorities.",
-      "to enable applicatio ns to be made in a particular manner.",
-      "(b)conferring other functions on registration officers.",
-      "(c)conferring functions on the Electoral Commission.",
-      "Electoral Registration and Administration Act 2013 (c."
-   ]
-}
-```
+- [ ] report on progress: https://www.adayinthelifeof.nl/2011/06/02/asynchronous-operations-in-rest/
+- [ ] supply the Retry-After header in initial submission based on 20% lambda allocaton
+- [ ] tests wait for estimated completion
+- [ ] estimate completion time by extrapolating pages over time 
+- [ ] expand tests to use extrapolated completion
 
 The output is a wordcount over all the fragments:
 ```json
@@ -56,6 +40,20 @@ The output is a wordcount over all the fragments:
    "ze": 2,
    "zeremoval": 1
 }
+```
+
+The API requires an authorisation header with a discount JWT, built like this:
+```bash
+header |= "Authorization: Bearer " ++ <descriptor_base64> ++ "." ++ <signature>
+signature |= hex( sha256( signing_string ) )
+signing_string |= <secret> ++ <descriptor_base64>
+descriptor_base64 = base64_encode( <descriptor> )
+descriptor |= { "user": "<user>", "expires": "<expires>" } (Parsed as JSON)
+user |= The name of the user for this token, e.g. local
+expires |= Epox time in the future, e.g. 1518305033
+secret |= any string for to generate, apply and forget, e.g. 587E99C4-72D4-4425-A7FB-BC3D9CAEEBFF
+e.g.
+Authorization: Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16
 ```
 
 Running
@@ -138,8 +136,12 @@ $ rm -rf "./dist"
 $ mkdir -p "./dist"
 $ echo "[install]" >> "./dist/setup.cfg"
 $ echo "prefix= "  >> "./dist/setup.cfg"
-$ cp "./lambda_wordcount.py" "./dist/."
+$ cp "./lambda_wordcount_proxied.py" "./dist/."
+$ cp "./lambda_wordcount_triggered.py" "./dist/."
 $ cp "./task_wordcount.py" "./dist/."
+$ cp "./utils_s3.py" "./dist/."
+$ cp "./utils_transform.py" "./dist/."
+$ cp "./utils_authorization.py" "./dist/."
 $ cd "./dist"
 $ python3 -m pip install PyPDF2 -t "."
 Collecting PyPDF2
@@ -151,6 +153,13 @@ Installing collected packages: timeout-decorator
 Successfully installed timeout-decorator-0.4.0
 $ cd ..
 $ 
+```
+
+Create API secret and embed in Serverless template:
+```bash
+$ API_SECRET="$(uuidgen)"
+$ sed -e 's/TEMPLATE_API_SECRET/'${API_SECRET?}'/g' "./serverless_wordcount_template.yaml" > "./serverless_wordcount.yaml"
+$
 ```
 
 Package AWS Lambda with Serverless template:
@@ -182,6 +191,8 @@ $
 
 Clean up:
 ```bash
+$ rm "serverless_wordcount.yaml"
+$ rm "serverless_wordcount_output.yaml"
 $ rm -rf "./dist"
 $
 ```
@@ -191,33 +202,116 @@ $
 Test
 ----
 
-Given a PDF containing text
+Querying deployment details:
+```bash
+$ API_SECRET=$(aws lambda get-function --function-name "ServerlessWordCountProxied" | jq --raw-output '.Configuration.Environment.Variables.ApiSecret')
+$ REST_API_ID=$(aws apigateway get-rest-apis | jq --raw-output '.items[] | select(.name == "serverless-wordcount-stack") | .id')
+$ REST_API_URL="https://${REST_API_ID?}.execute-api.eu-central-1.amazonaws.com/Prod"
+$ 
+```
+
+Creating Authorization header:
+```bash
+$ API_USER="local"
+$ API_TOKEN_EXPIRES="$(($(date +'%s + 3600')))"
+$ API_TOKEN_DESCRIPTOR="{ \"user\": \"${API_USER?}\", \"expires\": \"${API_TOKEN_EXPIRES?}\" }"
+$ API_AUTHORIZATION_USER=$(echo -n "${API_TOKEN_DESCRIPTOR?}" | base64)
+$ API_AUTHORIZATION_SIGNATURE=$(echo -n "${API_SECRET?}${API_AUTHORIZATION_USER?}" | openssl sha -sha256)
+$ API_AUTHORIZATION="${API_AUTHORIZATION_USER?}.${API_AUTHORIZATION_SIGNATURE?}"
+$ AUTHORIZATION_HEADER="Authorization: Bearer ${API_AUTHORIZATION?}"
+$ 
+```
+
+API Test healthcheck:
+```bash
+$ curl --silent \
+>    --request GET "${REST_API_URL?}/health" \
+>    --header "${AUTHORIZATION_HEADER?}" \
+>    | jq '.'
+{
+  "s3": {
+    "serverless-wordcount-hopper": "ok",
+    "serverless-wordcount-result": "ok",
+    "health_check_passed": true
+  }
+}
+$
+````
+
+Given a PDF containing text:
 ```bash
 $ aws s3 rm "s3://serverless-wordcount-hopper/" --recursive
 $ aws s3 rm "s3://serverless-wordcount-result/" --recursive
 $ aws s3 rm "s3://serverless-wordcount-archive/" --recursive
-$ aws s3 cp "ukpga_20100013_en.pdf" "s3://serverless-wordcount-hopper/"
-upload: ./ukpga_20100013_en.pdf to s3://serverless-wordcount-hopper/ukpga_20100013_en.pdf
 $
 ```
 
-When the PDF is placed in a bucket
+When the PDF is asynronously submitted:
 ```bash
-$ aws s3 ls "s3://serverless-wordcount-hopper/"
-2018-02-01 19:43:47     357161 ukpga_20100013_en.pdf
+Antonys-MacBook-Pro:aws-serverless-wordcount antony$ curl --include \
+>   --request POST "${REST_API_URL?}/wordcount" \
+>   --header "${AUTHORIZATION_HEADER?}" \
+>   --data @"./${FILENAME?}.base64" 
+HTTP/2 202 
+content-type: application/json
+content-length: 0
+date: Sat, 10 Feb 2018 21:48:45 GMT
+x-amzn-requestid: 2afda6ac-0eac-11e8-b776-ffc93935d8f7
+location: /wordcount/25758f5d-93b8-4827-bbe4-82ab2566ce24.pdf
+x-amzn-trace-id: sampled=0;root=1-5a7f68bd-ab4b03769277326ff49bfa4b
+x-cache: Miss from cloudfront
+via: 1.1 eeee1e9393059101448ec0a1c21a3018.cloudfront.net (CloudFront)
+x-amz-cf-id: Y2_dN4CxHsnlBbs2nrfV7EQH0o5fC4gYREAQNU948MAmgbfiNfI-hA==
+
+$ RESOURCE_PATH="/wordcount/25758f5d-93b8-4827-bbe4-82ab2566ce24.pdf"
 $
+```
+(Resource path is populated using the value of the Location header)
+
+We can poll until the resource is ready:
+```bash
+$ curl --include \
+>   --request GET "${REST_API_URL?}/${RESOURCE_PATH?}" \
+>   --header "${AUTHORIZATION_HEADER?}"
+HTTP/2 404 
+content-type: application/json
+content-length: 0
+date: Sat, 10 Feb 2018 21:59:22 GMT
+x-amzn-requestid: a69d5572-0ead-11e8-b1a7-21917ed4ebc8
+x-amzn-trace-id: sampled=0;root=1-5a7f6b3a-859333020d03ee8c7e308e4b
+x-cache: Error from cloudfront
+via: 1.1 87510893413a5a70f5cf33b727e70ad8.cloudfront.net (CloudFront)
+x-amz-cf-id: wlv_PX5E9-mLHkYnMTSqbVe-8adXgwm3MDP1H07ZZAbdwCj5Pb4rmA==
+
+$ 
+$ curl --include \
+>   --request GET "${REST_API_URL?}/${RESOURCE_PATH?}" \
+>   --header "${AUTHORIZATION_HEADER?}"
+HTTP/2 404 
+content-type: application/json
+content-length: 0
+date: Sat, 10 Feb 2018 21:59:22 GMT
+x-amzn-requestid: a69d5572-0ead-11e8-b1a7-21917ed4ebc8
+x-amzn-trace-id: sampled=0;root=1-5a7f6b3a-859333020d03ee8c7e308e4b
+x-cache: Error from cloudfront
+via: 1.1 87510893413a5a70f5cf33b727e70ad8.cloudfront.net (CloudFront)
+x-amz-cf-id: wlv_PX5E9-mLHkYnMTSqbVe-8adXgwm3MDP1H07ZZAbdwCj5Pb4rmA==
+
+$ 
 ```
 
 Then the PDF is transformed into fragments
 and the words in the sentence fragments are counted
-and the results are exported to a configured target folder
+and the results are exported to a configured target folder:
 ```bash
-$ aws s3 ls "s3://serverless-wordcount-result/"
-2018-02-01 19:44:09      20418 ukpga_20100013_en.pdf-result.json
-2018-02-01 19:44:09      99375 ukpga_20100013_en.pdf-result.json.descriptor.json
-$ aws s3 cp "s3://serverless-wordcount-result/ukpga_20100013_en.pdf-result.json" "ukpga_20100013_en.pdf-result.json"
-download: s3://serverless-wordcount-result/ukpga_20100013_en.pdf-result.json to ./ukpga_20100013_en.pdf-result.json
-$ head "./ukpga_20100013_en.pdf-result.json"
+$ curl \
+>   --request GET "${REST_API_URL?}/${RESOURCE_PATH?}" \
+>   --header "${AUTHORIZATION_HEADER?}" \
+>   --output "./${FILENAME?}-async-result.json"
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 16771  100 16771    0     0  28089      0 --:--:-- --:--:-- --:--:-- 28045
+$ cat "./${FILENAME?}-async-result.json" | jq '.' | head -10
 {
    "a": 616,
    "aa": 9,
@@ -228,7 +322,7 @@ $ head "./ukpga_20100013_en.pdf-result.json"
    "about": 32,
    "above": 4,
    "absent": 31,
-$ tail ukpga_20100013_en.pdf-result.json
+$ cat "./${FILENAME?}-async-result.json" | jq '.' | tail -10
    "years": 3,
    "za": 13,
    "zb": 9,
@@ -239,7 +333,7 @@ $ tail ukpga_20100013_en.pdf-result.json
    "ze": 2,
    "zeremoval": 1
 }
-$
+
 ```
 
 and the processed pdf is moved to a configured bucket.
@@ -248,8 +342,11 @@ $ aws s3 ls "s3://serverless-wordcount-hopper/" --summarize
 
 Total Objects: 0
    Total Size: 0  
+$ aws s3 ls "s3://serverless-wordcount-result/"
+2018-02-10 22:59:31      20418 4b124fc8-3bae-4cd3-9a9d-a18343ce8527.pdf-result.json
+2018-02-10 22:59:31      99394 4b124fc8-3bae-4cd3-9a9d-a18343ce8527.pdf-result.json.descriptor.json
 $ aws s3 ls "s3://serverless-wordcount-archive/"
-2018-02-01 19:44:09     357161 ukpga_20100013_en.pdf
+2018-02-10 22:59:31     357161 4b124fc8-3bae-4cd3-9a9d-a18343ce8527.pdf
 $
 ```
 
@@ -258,68 +355,71 @@ Observe
 
 The CloudWatch console shows serveral log events throughout the several seconds of execution:
 ```
-[INFO]  2018-02-01T18:49:32.768Z  Found credentials in environment variables.
-START RequestId: a3ebad7b-0780-11e8-9747-d58c273a1af5 Version: $LATEST
-[INFO]  2018-02-01T18:49:32.815Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Processing all records...
-[INFO]  2018-02-01T18:49:32.838Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Starting new HTTPS connection (1): s3.eu-central-1.amazonaws.com
-[INFO]  2018-02-01T18:49:33.176Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Opening PDF [/tmp/ukpga_20100013_en.pdf]
-[INFO]  2018-02-01T18:49:33.855Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 0
-[INFO]  2018-02-01T18:49:33.916Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 1
-[INFO]  2018-02-01T18:49:33.916Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 2
-[INFO]  2018-02-01T18:49:34.176Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 3
-[INFO]  2018-02-01T18:49:34.376Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 4
-[INFO]  2018-02-01T18:49:34.639Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 5
-[INFO]  2018-02-01T18:49:35.118Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 6
-[INFO]  2018-02-01T18:49:35.577Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 7
-[INFO]  2018-02-01T18:49:35.997Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 8
-[INFO]  2018-02-01T18:49:36.418Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 9
-[INFO]  2018-02-01T18:49:36.936Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 10
-[INFO]  2018-02-01T18:49:37.416Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 11
-[INFO]  2018-02-01T18:49:37.936Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 12
-[INFO]  2018-02-01T18:49:38.357Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 13
-[INFO]  2018-02-01T18:49:38.778Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 14
-[INFO]  2018-02-01T18:49:39.256Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 15
-[INFO]  2018-02-01T18:49:39.718Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 16
-[INFO]  2018-02-01T18:49:40.138Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 17
-[INFO]  2018-02-01T18:49:40.499Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 18
-[INFO]  2018-02-01T18:49:40.939Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 19
-[INFO]  2018-02-01T18:49:41.357Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 20
-[INFO]  2018-02-01T18:49:41.778Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 21
-[INFO]  2018-02-01T18:49:42.256Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 22
-[INFO]  2018-02-01T18:49:42.676Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 23
-[INFO]  2018-02-01T18:49:43.39Z a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 24
-[INFO]  2018-02-01T18:49:43.457Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 25
-[INFO]  2018-02-01T18:49:43.879Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 26
-[INFO]  2018-02-01T18:49:44.296Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 27
-[INFO]  2018-02-01T18:49:44.716Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 28
-[INFO]  2018-02-01T18:49:45.137Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 29
-[INFO]  2018-02-01T18:49:45.596Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 30
-[INFO]  2018-02-01T18:49:45.977Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 31
-[INFO]  2018-02-01T18:49:46.495Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 32
-[INFO]  2018-02-01T18:49:46.958Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 33
-[INFO]  2018-02-01T18:49:47.496Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 34
-[INFO]  2018-02-01T18:49:48.37Z a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 35
-[INFO]  2018-02-01T18:49:48.579Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 36
-[INFO]  2018-02-01T18:49:49.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 37
-[INFO]  2018-02-01T18:49:49.795Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 38
-[INFO]  2018-02-01T18:49:50.317Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 39
-[INFO]  2018-02-01T18:49:50.739Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 40
-[INFO]  2018-02-01T18:49:51.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 41
-[INFO]  2018-02-01T18:49:51.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 42
-[INFO]  2018-02-01T18:49:51.257Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Reading [/tmp/ukpga_20100013_en.pdf], page: 43
-[INFO]  2018-02-01T18:49:51.258Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Cleaning text: Currently 91925 characters
-[INFO]  2018-02-01T18:49:51.357Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Separating text: Currently 90650 characters
-FutureWarning: split() requires a non-empty pattern match. [task_wordcount.py:88]
-[INFO]  2018-02-01T18:49:51.575Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Saving descriptor for [/tmp/ukpga_20100013_en.pdf] as [/tmp/c2c142b0cf482def806a7d10c0f12001022b7a6266ca0658df367130c993d5d5-descriptor.json]
-[INFO]  2018-02-01T18:49:51.997Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Saving [/tmp/c2c142b0cf482def806a7d10c0f12001022b7a6266ca0658df367130c993d5d5-wordcount.json]
-[INFO]  2018-02-01T18:49:52.97Z a3ebad7b-0780-11e8-9747-d58c273a1af5  Resetting dropped connection: s3.eu-central-1.amazonaws.com
-[INFO]  2018-02-01T18:49:52.276Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Created s3://serverless-wordcount-result/ukpga_20100013_en.pdf
-[INFO]  2018-02-01T18:49:52.484Z  a3ebad7b-0780-11e8-9747-d58c273a1af5  Created s3://serverless-wordcount-archive/ukpga_20100013_en.pdf
-END RequestId: a3ebad7b-0780-11e8-9747-d58c273a1af5
-REPORT RequestId: a3ebad7b-0780-11e8-9747-d58c273a1af5  Duration: 19675.12 ms Billed Duration: 19700 ms Memory Size: 128 MB Max Memory Used: 39 MB  
+START RequestId: 9f5985a7-0eaf-11e8-96c8-537d85c8e846 Version: $LATEST
+[INFO]  2018-02-10T22:13:29.581Z  9f5985a7-0eaf-11e8-96c8-537d85c8e846  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:29.581Z  9f5985a7-0eaf-11e8-96c8-537d85c8e846  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:29.581Z  9f5985a7-0eaf-11e8-96c8-537d85c8e846  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:29.584Z  9f5985a7-0eaf-11e8-96c8-537d85c8e846  Starting new HTTPS connection (1): s3.eu-central-1.amazonaws.com
+END RequestId: 9f5985a7-0eaf-11e8-96c8-537d85c8e846
+REPORT RequestId: 9f5985a7-0eaf-11e8-96c8-537d85c8e846  Duration: 224.05 ms Billed Duration: 300 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: a3966bee-0eaf-11e8-9c7d-d38f153cb83b Version: $LATEST
+[INFO]  2018-02-10T22:13:36.208Z  a3966bee-0eaf-11e8-9c7d-d38f153cb83b  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:36.209Z  a3966bee-0eaf-11e8-9c7d-d38f153cb83b  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:36.209Z  a3966bee-0eaf-11e8-9c7d-d38f153cb83b  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:36.223Z  a3966bee-0eaf-11e8-9c7d-d38f153cb83b  Asynchronous processing...
+[INFO]  2018-02-10T22:13:36.243Z  a3966bee-0eaf-11e8-9c7d-d38f153cb83b  Uploading /tmp/72a46e82-9577-488a-815a-fd13d7e64d33 to bucket serverless-wordcount-hopper using key 7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf
+[INFO]  2018-02-10T22:13:36.266Z  a3966bee-0eaf-11e8-9c7d-d38f153cb83b  Resetting dropped connection: s3.eu-central-1.amazonaws.com
+END RequestId: a3966bee-0eaf-11e8-9c7d-d38f153cb83b
+REPORT RequestId: a3966bee-0eaf-11e8-9c7d-d38f153cb83b  Duration: 290.60 ms Billed Duration: 300 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: a3ed3ea0-0eaf-11e8-875e-8bf834e8b134 Version: $LATEST
+[INFO]  2018-02-10T22:13:36.775Z  a3ed3ea0-0eaf-11e8-875e-8bf834e8b134  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:36.775Z  a3ed3ea0-0eaf-11e8-875e-8bf834e8b134  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:36.775Z  a3ed3ea0-0eaf-11e8-875e-8bf834e8b134  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:36.792Z  a3ed3ea0-0eaf-11e8-875e-8bf834e8b134  Did not find s3://serverless-wordcount-result/7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf-result.json
+END RequestId: a3ed3ea0-0eaf-11e8-875e-8bf834e8b134
+REPORT RequestId: a3ed3ea0-0eaf-11e8-875e-8bf834e8b134  Duration: 17.15 ms  Billed Duration: 100 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: a410308a-0eaf-11e8-b680-c53ac127f2af Version: $LATEST
+[INFO]  2018-02-10T22:13:36.988Z  a410308a-0eaf-11e8-b680-c53ac127f2af  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:36.988Z  a410308a-0eaf-11e8-b680-c53ac127f2af  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:36.988Z  a410308a-0eaf-11e8-b680-c53ac127f2af  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:37.4Z  a410308a-0eaf-11e8-b680-c53ac127f2af  Did not find s3://serverless-wordcount-result/7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf-result.json
+END RequestId: a410308a-0eaf-11e8-b680-c53ac127f2af
+REPORT RequestId: a410308a-0eaf-11e8-b680-c53ac127f2af  Duration: 24.36 ms  Billed Duration: 100 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: a69813bc-0eaf-11e8-a0b8-85c429cbf101 Version: $LATEST
+[INFO]  2018-02-10T22:13:41.234Z  a69813bc-0eaf-11e8-a0b8-85c429cbf101  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:41.234Z  a69813bc-0eaf-11e8-a0b8-85c429cbf101  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:41.234Z  a69813bc-0eaf-11e8-a0b8-85c429cbf101  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:41.247Z  a69813bc-0eaf-11e8-a0b8-85c429cbf101  Did not find s3://serverless-wordcount-result/7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf-result.json
+END RequestId: a69813bc-0eaf-11e8-a0b8-85c429cbf101
+REPORT RequestId: a69813bc-0eaf-11e8-a0b8-85c429cbf101  Duration: 29.20 ms  Billed Duration: 100 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: a9246413-0eaf-11e8-807d-a70fd559e5e7 Version: $LATEST
+[INFO]  2018-02-10T22:13:45.509Z  a9246413-0eaf-11e8-807d-a70fd559e5e7  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:45.509Z  a9246413-0eaf-11e8-807d-a70fd559e5e7  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:45.509Z  a9246413-0eaf-11e8-807d-a70fd559e5e7  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:45.525Z  a9246413-0eaf-11e8-807d-a70fd559e5e7  Did not find s3://serverless-wordcount-result/7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf-result.json
+END RequestId: a9246413-0eaf-11e8-807d-a70fd559e5e7
+REPORT RequestId: a9246413-0eaf-11e8-807d-a70fd559e5e7  Duration: 17.24 ms  Billed Duration: 100 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: abadce2e-0eaf-11e8-bfb4-87b8973e9259 Version: $LATEST
+[INFO]  2018-02-10T22:13:49.765Z  abadce2e-0eaf-11e8-bfb4-87b8973e9259  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:49.765Z  abadce2e-0eaf-11e8-bfb4-87b8973e9259  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:49.765Z  abadce2e-0eaf-11e8-bfb4-87b8973e9259  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:49.794Z  abadce2e-0eaf-11e8-bfb4-87b8973e9259  Did not find s3://serverless-wordcount-result/7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf-result.json
+END RequestId: abadce2e-0eaf-11e8-bfb4-87b8973e9259
+REPORT RequestId: abadce2e-0eaf-11e8-bfb4-87b8973e9259  Duration: 29.83 ms  Billed Duration: 100 ms Memory Size: 128 MB Max Memory Used: 37 MB  
+START RequestId: ae3ba457-0eaf-11e8-a367-690339b9bc41 Version: $LATEST
+[INFO]  2018-02-10T22:13:54.50Z ae3ba457-0eaf-11e8-a367-690339b9bc41  Checking authorization_header=[Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH0=.b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:54.50Z ae3ba457-0eaf-11e8-a367-690339b9bc41  generated_signature=[b3c33e0315fa302906cadb1066678b8936f68ebccf6a04875fd6dbfd27030f16]
+[INFO]  2018-02-10T22:13:54.50Z ae3ba457-0eaf-11e8-a367-690339b9bc41  Accepted bearer token for: local (expires:1518304408)
+[INFO]  2018-02-10T22:13:54.110Z  ae3ba457-0eaf-11e8-a367-690339b9bc41  Resource Exists s3://serverless-wordcount-result/7ed160a7-3eca-4eb1-8a30-655b33408f0e.pdf-result.json
+END RequestId: ae3ba457-0eaf-11e8-a367-690339b9bc41
+REPORT RequestId: ae3ba457-0eaf-11e8-a367-690339b9bc41  Duration: 173.45 ms Billed Duration: 200 ms Memory Size: 128 MB Max Memory Used: 38 MB  
+Feedback
+English (US)
+Terms of UsePrivacy Policy© 2008 - 2018, Amazon Web Services, Inc. or its affiliates. All rights reserved.
+
 ```
 
-(included as test.sh)
+(included as test_deployed_proxied_primary.sh)
 
 Cloud Formation Custom Policy
 =============================
