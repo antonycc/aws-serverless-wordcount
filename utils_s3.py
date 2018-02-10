@@ -45,25 +45,24 @@ def object_exists(bucket, object_key):
     logger.info('Did not find s3://{}/{}'.format(bucket, object_key))
     return False
 
-def read_object_to_json(bucket, object_key):
-    local_result_filepath = Path('/tmp/{}'.format(uuid.uuid4()))
+def read_object_to_json(tmp_path, bucket, object_key):
+    local_result_filepath = Path('{}/{}'.format(str(tmp_path), uuid.uuid4()))
     s3_client.download_file(bucket, object_key, str(local_result_filepath))
     result_string = local_result_filepath.read_text()
     result = json.loads(result_string)
     return result
 
-def body_to_local(body):
+def body_to_local(tmp_path, body):
     logger.info('Synchronous processing...')
-    tmp_path = Path('/tmp')
-    local_source_filepath = Path('/tmp/{}'.format(uuid.uuid4()))
+    local_source_filepath = Path('{}/{}'.format(str(tmp_path), uuid.uuid4()))
     open(str(local_source_filepath), 'wb').write(body)
     return local_source_filepath
     
-def body_to_s3(body, bucket, object_key=None):
+def body_to_s3(tmp_path, body, bucket, object_key=None):
     logger.info('Asynchronous processing...')
     if object_key == None:
-        object_key = '{}'.format(uuid.uuid4())
-    tmp_file = Path('/tmp/{}'.format(uuid.uuid4()))
+        object_key = '{}.pdf'.format(uuid.uuid4())
+    tmp_file = Path('{}/{}'.format(str(tmp_path), uuid.uuid4()))
     open(str(tmp_file), 'wb').write(body)
     logger.info('Uploading {} to bucket {} using key {}'.format(str(tmp_file), bucket, object_key))
     s3_client.upload_file(str(tmp_file), bucket, object_key)

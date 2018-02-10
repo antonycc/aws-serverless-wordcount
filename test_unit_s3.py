@@ -57,9 +57,10 @@ def test_read_object_to_json():
     logger.info("PASS::test_read_object_to_json")
     bucket = 'serverless-wordcount-archive'
     object_key = 'ukpga_20100013_en.pdf-result.json'
+    tmp_path = Path('.')
     local_source_filepath = Path('./{}'.format(object_key))
     s3_client.upload_file(str(local_source_filepath), bucket, object_key)
-    json_object = module_under_test.read_object_to_json(bucket, object_key)
+    json_object = module_under_test.read_object_to_json(tmp_path, bucket, object_key)
     if len(json_object) > 0:
         logger.info("PASS::test_read_object_to_json")
     else:

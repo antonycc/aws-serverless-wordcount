@@ -64,12 +64,17 @@ Resources:
           ResultBucket:  'serverless-wordcount-result'
           ResultPostfix: '-result.json'
       Events:
-        APIGetEvent:
+        APIGetHealthEvent:
+          Type: Api
+          Properties:
+            Path: /health
+            Method: get
+        APIGetWordcountEvent:
           Type: Api
           Properties:
             Path: /wordcount/{proxy+}
             Method: get
-        APIPostEvent:
+        APIPostWordcountEvent:
           Type: Api
           Properties:
             Path: /wordcount

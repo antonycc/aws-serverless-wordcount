@@ -27,7 +27,7 @@ unwanted_whitespace = re.compile("\n|\u0160|\ufb01|\ufb02")
 many_spaces = re.compile(" +")
 fragment_separators = re.compile("\.|,|;|:|\-|\+|\*|\?|\|\[|\]|(|)|{|}|\"|\'")
 
-def do_task(tmp_path, pdf_filepath, text_descriptor_filepath, wordcount_filepath=None):
+def do_task(tmp_path, pdf_filepath, text_descriptor_filepath=None, wordcount_filepath=None):
    fragments = extract_fragments_from_pdf(pdf_filepath)
    text_descriptor = generate_and_save_text_descriptor(pdf_filepath, fragments, text_descriptor_filepath)
    return generate_and_save_wordcount_from_fragments(fragments, wordcount_filepath)
@@ -35,8 +35,9 @@ def do_task(tmp_path, pdf_filepath, text_descriptor_filepath, wordcount_filepath
 def generate_and_save_text_descriptor(pdf_filepath, fragments, text_descriptor_filepath):
    text_descriptor = build_text_descriptor(pdf_filepath, fragments)
    logger.info("Saving descriptor for [{}] as [{}]".format(pdf_filepath, text_descriptor_filepath))
-   with open(text_descriptor_filepath, 'w') as text_descriptor_file:
-      json.dump(text_descriptor, text_descriptor_file, sort_keys=True, indent=3)
+   if text_descriptor_filepath:
+      with open(text_descriptor_filepath, 'w') as text_descriptor_file:
+         json.dump(text_descriptor, text_descriptor_file, sort_keys=True, indent=3)
    return text_descriptor
 
 def extract_fragments_from_pdf(pdf_filepath):

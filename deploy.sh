@@ -1,6 +1,7 @@
 #!/bin/bash
-# debug
-# aws cloudformation describe-stack-events --stack-name serverless-wordcount-stack | grep "FAILED" -a2 | head -20
+# Deploy local files to AWS
+# debug:
+#    aws cloudformation describe-stack-events --stack-name serverless-wordcount-stack | grep "FAILED" -a2 | head -20
 
 # Prepare source files for distribution
 rm -rf "./dist"

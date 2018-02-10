@@ -7,6 +7,14 @@
 - [x] and the results are exported to a configured target folder
 - [x] and the processed pdf is moved to a configured bucket.
 
+TODO
+- [ ] supply the Retry-After header and consume (in tests) by looping that number of seconds between tries
+- [ ] change README to describe the async API
+- [ ] document bearer token in README
+- [ ] unit test framework
+- [ ] code style check
+- [ ] scripted build (or at least all scripts in python)
+
 The descriptor contains basic metadata and sentence fragments from the document:
 ```json
 {
