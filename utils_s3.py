@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Purpose: S3 utilities wrapping boto2
 
+import os
 import logging
 import json
 import uuid
@@ -49,6 +50,7 @@ def read_object_to_json(tmp_path, bucket, object_key):
     local_result_filepath = Path('{}/{}'.format(str(tmp_path), uuid.uuid4()))
     s3_client.download_file(bucket, object_key, str(local_result_filepath))
     result_string = local_result_filepath.read_text()
+    os.remove(str(local_result_filepath))
     result = json.loads(result_string)
     return result
 

@@ -20,12 +20,15 @@ logger.setLevel(logging.INFO)
 
 def lambda_handler(request, context):
     log_request_response('REQUEST:', request)
-    api_secret = os.environ['ApiSecret']
-    authorization_header = request['headers']['Authorization']
-    current_time = int(time.time())
-    response = web_handler(request, authorization_header, api_secret, current_time)
-    log_request_response('RESPONSE:', request)
-    return response
+    if 'resource' in request:
+        api_secret = os.environ['ApiSecret']
+        authorization_header = request['headers']['Authorization']
+        current_time = int(time.time())
+        response = web_handler(request, authorization_header, api_secret, current_time)
+        log_request_response('RESPONSE:', request)
+        return response
+    else:
+        logger.info('No resource identified in request to process.')
 
 def log_request_response(event, payload):
     logger.debug(event)

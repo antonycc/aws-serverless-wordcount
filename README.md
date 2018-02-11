@@ -8,13 +8,16 @@
 - [x] and the processed pdf is moved to a configured bucket.
 
 TODO
-- [ ] unit test framework
-- [ ] code style check
+- [ ] local dependency install
 - [ ] scripted build (or at least all scripts in python)
-- [ ] report on progress: https://www.adayinthelifeof.nl/2011/06/02/asynchronous-operations-in-rest/
+- [ ] project structure: https://docs.pytest.org/en/latest/goodpractices.html#goodpractices
+- [ ] code style check
+- [ ] deployed tests as pytest integration tests
+- [ ] test coverage
 - [ ] supply the Retry-After header in initial submission based on 20% lambda allocaton
+- [ ] report on progress: https://www.adayinthelifeof.nl/2011/06/02/asynchronous-operations-in-rest/
 - [ ] tests wait for estimated completion
-- [ ] estimate completion time by extrapolating pages over time 
+- [ ] estimate completion time by extrapolating pages over time and expose in 404 resonses
 - [ ] expand tests to use extrapolated completion
 
 The output is a wordcount over all the fragments:
@@ -99,6 +102,21 @@ Successfully installed timeout-decorator-0.4.0
 $ 
 ```
 
+https://docs.pytest.org/
+```bash
+$ python3 -m pip install pytest
+Requirement already satisfied: pytest in /usr/local/lib/python3.6/site-packages
+Requirement already satisfied: six>=1.10.0 in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: setuptools in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: pluggy<0.7,>=0.5 in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: py>=1.5.0 in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: attrs>=17.2.0 in /usr/local/lib/python3.6/site-packages (from pytest)
+$ 
+```
+
+# 
+# python3 -m pip install pytest
+
 Configure AWS
 -------------
 
@@ -121,6 +139,25 @@ $
 
 Package and Deploy
 ------------------
+
+Ensure unit tests pass:
+```bash
+$ pytest
+=========================================================================================== test session starts ============================================================================================
+platform darwin -- Python 3.6.4, pytest-3.4.0, py-1.5.2, pluggy-0.6.0
+rootdir: /Users/antony/projects/aws-serverless-wordcount, inifile:
+collected 21 items                                                                                                                                                                                         
+
+test_unit_authorization.py ...........                                                                                                                                                               [ 52%]
+test_unit_deployed_proxied.py .                                                                                                                                                                      [ 57%]
+test_unit_deployed_triggered.py .                                                                                                                                                                    [ 61%]
+test_unit_s3.py .....                                                                                                                                                                                [ 85%]
+test_unit_transform.py ..                                                                                                                                                                            [ 95%]
+test_unit_wordcount.py .                                                                                                                                                                             [100%]
+
+======================================================================================== 21 passed in 2.94 seconds =========================================================================================
+$ 
+```
 
 Choose a name and create an S3 deployment bucket:
 ```bash

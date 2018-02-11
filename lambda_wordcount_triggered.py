@@ -15,9 +15,11 @@ logger.setLevel(logging.INFO)
 
 s3_client = boto3.client('s3')
 
-def lambda_handler(event, context):    
+def lambda_handler(event, context):
     if 'Records' in event:
         process_all_records(event['Records'])
+    else:
+        logger.info('No records in event to process.')
 
 def process_all_records(records):
     logger.info('Processing all records...')

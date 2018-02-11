@@ -24,11 +24,7 @@ def test_base64():
         logger.info("FAIL::test_base64 (decoded string does not match original)")
     decoded_obj = json.loads(decoded)
     decoded_value = decoded_obj[key]
-    if expected_value == decoded_value:
-        logger.info("PASS::test_base64")
-    else:
-        logger.error("FAIL::test_base64 (decoded value mutated)")
-        exit(1)
+    assert expected_value == decoded_value
 
 def test_filter_dict():
     keep = 'keep'
@@ -37,15 +33,4 @@ def test_filter_dict():
     ks = [filter]
     n = 4
     d2 = module_under_test.filter_dict(d1, ks, n)
-    if (d2[keep] == 'this') and (d2[filter] == 'that'):
-        logger.info("PASS::test_filter_dict")
-    else:
-        logger.error("FAIL::test_filter_dict")
-        exit(1)
-
-def run_tests():
-    test_base64()
-    test_base64()
-    test_filter_dict()
-
-run_tests()
+    assert (d2[keep] == 'this') and (d2[filter] == 'that')
