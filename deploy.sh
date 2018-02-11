@@ -8,15 +8,15 @@ rm -rf "./dist"
 mkdir -p "./dist"
 echo "[install]" >> "./dist/setup.cfg"
 echo "prefix= "  >> "./dist/setup.cfg"
-cp "./lambda_wordcount_proxied.py" "./dist/."
-cp "./lambda_wordcount_triggered.py" "./dist/."
-cp "./task_wordcount.py" "./dist/."
+cp "./setup.py" "./dist/."
 cp "./utils_s3.py" "./dist/."
 cp "./utils_transform.py" "./dist/."
 cp "./utils_authorization.py" "./dist/."
+cp "./task_wordcount.py" "./dist/."
+cp "./lambda_wordcount_proxied.py" "./dist/."
+cp "./lambda_wordcount_triggered.py" "./dist/."
 cd "./dist"
-python3 -m pip install PyPDF2 -t "."
-python3 -m pip install timeout-decorator -t "."
+python3 -m pip install '.' -t '.'
 cd ..
 
 # Create API secret and embed in Serverless template

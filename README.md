@@ -8,17 +8,19 @@
 - [x] and the processed pdf is moved to a configured bucket.
 
 TODO
-- [ ] local dependency install
 - [ ] scripted build (or at least all scripts in python)
+- [ ] pyenv
 - [ ] project structure: https://docs.pytest.org/en/latest/goodpractices.html#goodpractices
 - [ ] code style check
 - [ ] deployed tests as pytest integration tests
 - [ ] test coverage
 - [ ] supply the Retry-After header in initial submission based on 20% lambda allocaton
 - [ ] report on progress: https://www.adayinthelifeof.nl/2011/06/02/asynchronous-operations-in-rest/
-- [ ] tests wait for estimated completion
+- [ ] tests wait for iterations of estimated completion
 - [ ] estimate completion time by extrapolating pages over time and expose in 404 resonses
-- [ ] expand tests to use extrapolated completion
+- [ ] tests to use extrapolated completion after each check returning a 404
+- [ ] mock writing to the local filesystem during tests (and copy filesystem tests to an integation suite)
+- [ ] mock writing to s3 during tests (and copy s3 tests to an integration suite)
 
 The output is a wordcount over all the fragments:
 ```json
@@ -62,10 +64,10 @@ Authorization: Bearer eyAidXNlciI6ICJsb2NhbCIsICJleHBpcmVzIjogIjE1MTgzMDQ0MDgiIH
 Running
 =======
 
-Install AWS CLI
----------------
+Configure AWS
+-------------
 
-See Amazon docs: https://docs.aws.amazon.com/cli/latest/userguide/installing.html
+Install AWS CLI - See Amazon docs: https://docs.aws.amazon.com/cli/latest/userguide/installing.html
 
 Also for macos, another option is Brew:
 ```bash
@@ -80,45 +82,6 @@ $ aws --version
 aws-cli/1.14.29 Python/2.7.10 Darwin/17.3.0 botocore/1.8.33
 $
 ```
-
-Configure Python libraries
---------------------------
-
-https://github.com/mstamy2/PyPDF2
-```bash
-$ python3 -m pip install PyPDF2
-Collecting PyPDF2
-Installing collected packages: PyPDF2
-Successfully installed PyPDF2-1.26.0
-$ 
-```
-
-https://pypi.python.org/pypi/timeout-decorator
-```bash
-$ python3 -m pip install timeout-decorator
-Collecting timeout-decorator
-Installing collected packages: timeout-decorator
-Successfully installed timeout-decorator-0.4.0
-$ 
-```
-
-https://docs.pytest.org/
-```bash
-$ python3 -m pip install pytest
-Requirement already satisfied: pytest in /usr/local/lib/python3.6/site-packages
-Requirement already satisfied: six>=1.10.0 in /usr/local/lib/python3.6/site-packages (from pytest)
-Requirement already satisfied: setuptools in /usr/local/lib/python3.6/site-packages (from pytest)
-Requirement already satisfied: pluggy<0.7,>=0.5 in /usr/local/lib/python3.6/site-packages (from pytest)
-Requirement already satisfied: py>=1.5.0 in /usr/local/lib/python3.6/site-packages (from pytest)
-Requirement already satisfied: attrs>=17.2.0 in /usr/local/lib/python3.6/site-packages (from pytest)
-$ 
-```
-
-# 
-# python3 -m pip install pytest
-
-Configure AWS
--------------
 
 Create a IAM user with the following Polices:
 * Amazon: AWSLambdaFullAccess
@@ -139,6 +102,30 @@ $
 
 Package and Deploy
 ------------------
+
+Install Python libraries:
+```bash
+$ python3 -m pip install .
+Processing /Users/antony/projects/aws-serverless-wordcount
+Collecting PyPDF2>=1.26 (from AWS-Serverless-Wordcount==0.0.1)
+Collecting timeout-decorator>=0.4.0 (from AWS-Serverless-Wordcount==0.0.1)
+Installing collected packages: PyPDF2, timeout-decorator, AWS-Serverless-Wordcount
+  Running setup.py install for AWS-Serverless-Wordcount ... done
+Successfully installed AWS-Serverless-Wordcount-0.0.1 PyPDF2-1.26.0 timeout-decorator-0.4.0
+$ 
+```
+
+Install https://docs.pytest.org/:
+```bash
+$ python3 -m pip install pytest
+Requirement already satisfied: pytest in /usr/local/lib/python3.6/site-packages
+Requirement already satisfied: six>=1.10.0 in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: setuptools in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: pluggy<0.7,>=0.5 in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: py>=1.5.0 in /usr/local/lib/python3.6/site-packages (from pytest)
+Requirement already satisfied: attrs>=17.2.0 in /usr/local/lib/python3.6/site-packages (from pytest)
+$ 
+```
 
 Ensure unit tests pass:
 ```bash
@@ -180,14 +167,13 @@ $ cp "./utils_s3.py" "./dist/."
 $ cp "./utils_transform.py" "./dist/."
 $ cp "./utils_authorization.py" "./dist/."
 $ cd "./dist"
-$ python3 -m pip install PyPDF2 -t "."
-Collecting PyPDF2
-Installing collected packages: PyPDF2
-Successfully installed PyPDF2-1.26.0
-$ python3 -m pip install timeout-decorator -t "."
-Collecting timeout-decorator
-Installing collected packages: timeout-decorator
-Successfully installed timeout-decorator-0.4.0
+$ python3 -m pip install '.' -t '.'
+Processing /Users/antony/projects/aws-serverless-wordcount/dist
+Collecting PyPDF2>=1.26 (from AWS-Serverless-Wordcount==0.0.1)
+Collecting timeout-decorator>=0.4.0 (from AWS-Serverless-Wordcount==0.0.1)
+Installing collected packages: PyPDF2, timeout-decorator, AWS-Serverless-Wordcount
+  Running setup.py install for AWS-Serverless-Wordcount ... done
+Successfully installed AWS-Serverless-Wordcount-0.0.1 PyPDF2-1.26.0 timeout-decorator-0.4.0
 $ cd ..
 $ 
 ```
