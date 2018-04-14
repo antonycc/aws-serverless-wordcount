@@ -6,6 +6,7 @@ ukpga_20100013_en.pdf-fake-result.json
 dist
 target
 tmp
+.idea
 __pycache__
 .pytest_cache/
 *.base64

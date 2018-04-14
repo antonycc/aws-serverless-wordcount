@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 # Purpose: Read a body and submit for a wordcount
 
-import os
-import logging
-import json
-import time
-import uuid
 import base64
+import json
+import logging
+import os
 from http import HTTPStatus
 from pathlib import Path
-import utils_authorization as auth
-import utils_transform as transform
-import utils_s3 as utils_s3
+
+import time
+
 import task_wordcount as task
+import utils_authorization as auth
+import utils_s3 as utils_s3
+import utils_transform as transform
 
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
 
 def lambda_handler(request, context):
     log_request_response('REQUEST:', request)
@@ -30,9 +32,11 @@ def lambda_handler(request, context):
     else:
         logger.info('No resource identified in request to process.')
 
+
 def log_request_response(event, payload):
     logger.debug(event)
     logger.debug(json.dumps(transform.filter_dict(payload, ['body'], 20)))
+
 
 def web_handler(request, authorization_header, api_secret, current_time):
     response = auth.auth_header_valid(authorization_header, api_secret, current_time)
@@ -49,10 +53,11 @@ def web_handler(request, authorization_header, api_secret, current_time):
         response['statusCode'] = HTTPStatus.METHOD_NOT_ALLOWED
         return response
 
+
 def get_query_string_parameters(request):
     qparams = {
         'filename': None,
-        'is_synchronous': False    
+        'is_synchronous': False
     }
     filename = None
     is_synchronous = False
@@ -61,6 +66,7 @@ def get_query_string_parameters(request):
             qparams['filename'] = request['queryStringParameters']['filename']
         qparams['is_synchronous'] = ('is_synchronous' in request['queryStringParameters'])
     return qparams
+
 
 def get_health_handler(request, response):
     hopper_bucket = os.environ['HopperBucket']
@@ -76,6 +82,7 @@ def get_health_handler(request, response):
     response['body'] = json.dumps(health)
     return response
 
+
 def get_wordcount_handler(request, response):
     result_bucket = os.environ['ResultBucket']
     postfix = os.environ['ResultPostfix']
@@ -90,6 +97,7 @@ def get_wordcount_handler(request, response):
     else:
         response['statusCode'] = HTTPStatus.NOT_FOUND
         return response
+
 
 def post_wordcount_handler(request, response):
     body = base64.b64decode(request['body'])
@@ -107,6 +115,3 @@ def post_wordcount_handler(request, response):
         response['statusCode'] = HTTPStatus.ACCEPTED
         response['headers']['Location'] = '/wordcount/{}'.format(resource)
         return response
-
-
-
